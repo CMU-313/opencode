@@ -244,6 +244,28 @@ export async function runPool<T, R>(items: readonly T[], concurrency: number, ta
     .map((entry) => entry[1])
 }
 
+export async function runTranslations(
+  pending: { locale: Locale; language: string; domains: Domain[] }[],
+  template: string,
+  options: { concurrency: number; model: string; variant: string },
+) {
+  const results = await runPool(pending, options.concurrency, (plan) =>
+    translate(plan, template, options.model, options.variant).catch((error) => ({
+      locale: plan.locale,
+      code: 1,
+      stdout: "",
+      stderr: error instanceof Error ? error.message : String(error),
+    })),
+  )
+
+  results.forEach((result) => {
+    if (result.stdout) process.stdout.write(`\n[${result.locale}]\n${result.stdout}`)
+    if (result.stderr) process.stderr.write(`\n[${result.locale}]\n${result.stderr}`)
+  })
+
+  return results
+}
+
 async function main() {
   const options = parseTranslationArgs(Bun.argv.slice(2))
   if (options.help) {
@@ -282,19 +304,7 @@ Examples:
   const variant = await resolveModelVariant(options.model, options.variant)
   console.log(`Resolved ${options.model} (${options.variant}): ${JSON.stringify(variant)}`)
   const template = await commandTemplate()
-  const results = await runPool(pending, options.concurrency, (plan) =>
-    translate(plan, template, options.model, options.variant).catch((error) => ({
-      locale: plan.locale,
-      code: 1,
-      stdout: "",
-      stderr: error instanceof Error ? error.message : String(error),
-    })),
-  )
-
-  results.forEach((result) => {
-    if (result.stdout) process.stdout.write(`\n[${result.locale}]\n${result.stdout}`)
-    if (result.stderr) process.stderr.write(`\n[${result.locale}]\n${result.stderr}`)
-  })
+  const results = await runTranslations(pending, template, options)
 
   const failed = results.filter((result) => result.code !== 0)
   const checks = await runPool(pending, options.concurrency, (plan) => check(plan.locale))
