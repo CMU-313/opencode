@@ -37,6 +37,37 @@ function setup(input?: { currentVersion?: string; ready?: UpdaterReadyRecord }) 
 }
 
 describe("updater controller", () => {
+  test("does not check for updates when disabled", async () => {
+    const calls: string[] = []
+    const controller = createUpdaterController({
+      enabled: false,
+      currentVersion: "1.0.0",
+      backend: {
+        checkForUpdates: async () => {
+          calls.push("check")
+          return { isUpdateAvailable: true, updateInfo: { version: "2.0.0" } }
+        },
+        downloadUpdate: async () => {
+          calls.push("download")
+        },
+        quitAndInstall() {},
+      },
+      persistence: { get: () => undefined, set() {}, clear() {} },
+      stop: async () => {},
+    })
+
+    await expect(controller.check()).resolves.toEqual({ status: "disabled" })
+    expect(calls).toEqual([])
+  })
+
+  test("does not check again when an update is ready", async () => {
+    const app = setup()
+    await app.controller.check()
+
+    await expect(app.controller.check()).resolves.toEqual({ status: "ready", version: "2.0.0" })
+    expect(app.calls).toEqual(["check", "download"])
+  })
+
   test("checks, downloads, persists, and publishes one authoritative ready state", async () => {
     const app = setup()
     const states: ReturnType<typeof app.controller.getState>[] = []
