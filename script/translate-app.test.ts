@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, test, spyOn } from "bun:test"
 import {
   findDrift,
   glossaryFile,
   modelVariants,
   parseTranslationArgs,
   runPool,
+  runTranslations,
   sessionIDFromEvents,
   sessionModels,
   targetFiles,
@@ -217,5 +218,48 @@ opencode/next
     expect(unexpectedChanges({ "already-dirty.ts": "before" }, { "already-dirty.ts": "after" }, [])).toEqual([
       "already-dirty.ts",
     ])
+  })
+
+  test("converts a nonzero opencode exit code into a failed result for that locale", async () => {
+    const testProc = {
+      stdout: new Response("").body,
+      stderr: new Response("model failed to start").body,
+      stdin: { write: async () => {}, end: async () => {} },
+      exited: Promise.resolve(1),
+    }
+    const spawnSpy = spyOn(Bun, "spawn").mockReturnValue(testProc as never)
+
+    const results = await runTranslations(
+      [{ locale: "fr", language: "French", domains: [] }],
+      "template",
+      { concurrency: 1, model: "opencode/gpt-5.5", variant: "xhigh" },
+    )
+
+    expect(results).toEqual([{ locale: "fr", stdout: "", stderr: "model failed to start", code: 1 }])
+    spawnSpy.mockRestore()
+  })
+
+  test("converts a thrown error from translate into a failed result", async () => {
+    const testProc = {
+      stdout: new Response("").body,
+      stderr: new Response("").body,
+      stdin: {
+        write: async () => {
+          throw new Error("stdin closed unexpectedly")
+        },
+        end: async () => {},
+      },
+      exited: Promise.resolve(0),
+    }
+    const spawnSpy = spyOn(Bun, "spawn").mockReturnValue(testProc as never)
+
+    const results = await runTranslations(
+      [{ locale: "fr", language: "French", domains: [] }],
+      "template",
+      { concurrency: 1, model: "opencode/gpt-5.5", variant: "xhigh" },
+    )
+
+    expect(results).toEqual([{ locale: "fr", code: 1, stdout: "", stderr: "stdin closed unexpectedly" }])
+    spawnSpy.mockRestore()
   })
 })
