@@ -238,4 +238,28 @@ opencode/next
     expect(results).toEqual([{ locale: "fr", stdout: "", stderr: "model failed to start", code: 1 }])
     spawnSpy.mockRestore()
   })
+
+  test("converts a thrown error from translate into a failed result", async () => {
+    const testProc = {
+      stdout: new Response("").body,
+      stderr: new Response("").body,
+      stdin: {
+        write: async () => {
+          throw new Error("stdin closed unexpectedly")
+        },
+        end: async () => {},
+      },
+      exited: Promise.resolve(0),
+    }
+    const spawnSpy = spyOn(Bun, "spawn").mockReturnValue(testProc as never)
+
+    const results = await runTranslations(
+      [{ locale: "fr", language: "French", domains: [] }],
+      "template",
+      { concurrency: 1, model: "opencode/gpt-5.5", variant: "xhigh" },
+    )
+
+    expect(results).toEqual([{ locale: "fr", code: 1, stdout: "", stderr: "stdin closed unexpectedly" }])
+    spawnSpy.mockRestore()
+  })
 })
