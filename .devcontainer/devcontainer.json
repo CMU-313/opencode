@@ -1,0 +1,18 @@
+{
+    "name": "opencode-dev",
+    "image": "oven/bun:1",
+    "features": {
+      "ghcr.io/devcontainers/features/git:1": {}
+    },
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "dbaeumer.vscode-eslint",
+          "esbenp.prettier-vscode"
+        ]
+      }
+    },
+    "postCreateCommand": "bun --version",
+    "forwardPorts": [3000, 5173],
+    "remoteUser": "root"
+  }
