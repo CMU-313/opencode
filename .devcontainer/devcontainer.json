@@ -1,0 +1,5 @@
+{
+  "name": "opencode",
+  "image": "oven/bun:1-debian",
+  "postCreateCommand": "apt-get update && apt-get install -y git python3 make g++ && bun install"
+}
