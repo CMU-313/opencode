@@ -37,27 +37,31 @@ export const createDirSyncContext = (
     },
   })
   const set = ((...input: unknown[]) => {
+    let res
+
     if (typeof input[0] === "string" && sessionFields.has(input[0])) {
-      return (serverSync.session.set as (...args: unknown[]) => unknown)(...input)
+      res = (serverSync.session.set as (...args: unknown[]) => unknown)(...input)
+    } else {
+      res = (current()[1] as (...args: unknown[]) => unknown)(...input)
+      if (input[0] === "session") current()[0].session.forEach(serverSync.session.remember)
     }
-    const result = (current()[1] as (...args: unknown[]) => unknown)(...input)
-    if (input[0] === "session") current()[0].session.forEach(serverSync.session.remember)
-    return result
+    return res
   }) as SetStoreFunction<State>
 
   const index = (sessionID: string) => {
     const session = serverSync.session.get(sessionID)
-    if (!session || session.directory !== directory) return
-    const [store, setStore] = current()
-    const result = Binary.search(store.session, session.id, (item) => item.id)
-    if (result.found) {
-      setStore("session", result.index, reconcile(session))
-      return
+    if (session && session.directory === directory) {
+      const [store, setStore] = current()
+      const result = Binary.search(store.session, session.id, (item) => item.id)
+      if (result.found) {
+        setStore("session", result.index, reconcile(session))
+      } else {
+        setStore(
+        "session",
+        produce((draft) => void draft.splice(result.index, 0, session)),
+        )
+      }
     }
-    setStore(
-      "session",
-      produce((draft) => void draft.splice(result.index, 0, session)),
-    )
   }
 
   return {
@@ -134,15 +138,21 @@ export const createDirSyncContext = (
       },
       more: createMemo(() => current()[0].session.length >= current()[0].limit),
       archive: async (sessionID: string) => {
-        if ((await serverSDK.protocol) !== "v1") return
-        await serverSDK.client.session.update({ sessionID, directory, time: { archived: Date.now() } })
-        current()[1](
-          "session",
-          produce((draft) => {
-            const match = Binary.search(draft, sessionID, (session) => session.id)
-            if (match.found) draft.splice(match.index, 1)
-          }),
-        )
+        if ((await serverSDK.protocol) === "v1") {
+          await serverSDK.client.session.update({
+            sessionID,
+            directory,
+            time: { archived: Date.now() },
+          })
+
+          current()[1](
+            "session",
+            produce((draft) => {
+              const match = Binary.search(draft, sessionID, (session) => session.id)
+              if (match.found) draft.splice(match.index, 1)
+            }),
+          )
+        }
       },
     },
     mcp: {
