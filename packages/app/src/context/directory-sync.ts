@@ -6,6 +6,7 @@ import type { createServerSdkContext } from "./server-sdk"
 import type { createServerSyncContextInner } from "./server-sync"
 import type { State } from "./global-sync/types"
 import { normalizeSessionInfo } from "@/utils/session"
+import { unknown } from "effect/SchemaAST"
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 const sessionFields = new Set([
@@ -21,6 +22,53 @@ const sessionFields = new Set([
   "part_text_accum_delta",
 ])
 
+const indexHelper = (
+    sessionID: string,
+    directory: string, 
+    serverSync: ReturnType<typeof createServerSyncContextInner>,
+    current: () => ReturnType<ReturnType<typeof createServerSyncContextInner>["child"]>,
+  ) => {
+      const session = serverSync.session.get(sessionID)
+      if (session && session.directory === directory) {
+        const [store, setStore] = current()
+        const result = Binary.search(store.session, session.id, (item) => item.id)
+        if (result.found) {
+          setStore("session", result.index, reconcile(session))
+        } else {
+          setStore(
+          "session",
+          produce((draft) => void draft.splice(result.index, 0, session)),
+          )
+        }
+      }
+    }
+
+const dataHelper = (
+  property: keyof State,
+  serverSync: ReturnType<typeof createServerSyncContextInner>,
+  current: () => ReturnType<ReturnType<typeof createServerSyncContextInner>["child"]>, 
+) => {
+  if (property === "session_working") return serverSync.session.data.session_working.bind(serverSync.session.data)
+  if (sessionFields.has(property)) return serverSync.session.data[property as keyof typeof serverSync.session.data]
+  return current()[0][property]
+}
+
+const setHelper = (
+  input: unknown[],
+  serverSync: ReturnType<typeof createServerSyncContextInner>,
+  current: () => ReturnType<ReturnType<typeof createServerSyncContextInner>["child"]>, 
+) => {
+  let res
+
+  if (typeof input[0] === "string" && sessionFields.has(input[0])) {
+    res = (serverSync.session.set as (...args: unknown[]) => unknown)(...input)
+  } else {
+    res = (current()[1] as (...args: unknown[]) => unknown)(...input)
+    if (input[0] === "session") current()[0].session.forEach(serverSync.session.remember)
+  }
+  return res
+}
+
 export const createDirSyncContext = (
   directory: string,
   serverSync: ReturnType<typeof createServerSyncContextInner>,
@@ -31,38 +79,12 @@ export const createDirSyncContext = (
   const absolute = (path: string) => (current()[0].path.directory + "/" + path).replace("//", "/")
   const data = new Proxy({} as State, {
     get(_, property: keyof State) {
-      if (property === "session_working") return serverSync.session.data.session_working.bind(serverSync.session.data)
-      if (sessionFields.has(property)) return serverSync.session.data[property as keyof typeof serverSync.session.data]
-      return current()[0][property]
-    },
-  })
+      return dataHelper(property, serverSync, current)
+    }
+  })  
   const set = ((...input: unknown[]) => {
-    let res
-
-    if (typeof input[0] === "string" && sessionFields.has(input[0])) {
-      res = (serverSync.session.set as (...args: unknown[]) => unknown)(...input)
-    } else {
-      res = (current()[1] as (...args: unknown[]) => unknown)(...input)
-      if (input[0] === "session") current()[0].session.forEach(serverSync.session.remember)
-    }
-    return res
+    return setHelper(input, serverSync, current)
   }) as SetStoreFunction<State>
-
-  const index = (sessionID: string) => {
-    const session = serverSync.session.get(sessionID)
-    if (session && session.directory === directory) {
-      const [store, setStore] = current()
-      const result = Binary.search(store.session, session.id, (item) => item.id)
-      if (result.found) {
-        setStore("session", result.index, reconcile(session))
-      } else {
-        setStore(
-        "session",
-        produce((draft) => void draft.splice(result.index, 0, session)),
-        )
-      }
-    }
-  }
 
   return {
     data,
@@ -81,7 +103,7 @@ export const createDirSyncContext = (
     session: {
       remember(session: Session) {
         serverSync.session.remember(session)
-        index(session.id)
+        indexHelper(session.id, directory, serverSync, current)
       },
       get(sessionID: string) {
         const session = serverSync.session.get(sessionID)
@@ -118,7 +140,7 @@ export const createDirSyncContext = (
       },
       async sync(sessionID: string, options?: { force?: boolean }) {
         await serverSync.session.sync(sessionID, options)
-        index(sessionID)
+        indexHelper(sessionID, directory, serverSync, current)
       },
       todo: serverSync.session.todo,
       history: serverSync.session.history,
