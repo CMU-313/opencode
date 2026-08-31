@@ -1,4 +1,4 @@
 {
-	"name": "opencode",
+	"name": "pmerrit opencode",
 	"image": "mcr.microsoft.com/devcontainers/javascript-node:0-18"
 }
