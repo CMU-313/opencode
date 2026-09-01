@@ -1,0 +1,7 @@
+﻿
+
+packages/desktop/src/main/apps.ts
+   1  High total complexity (count = 61)
+  79  Function with high complexity (count = 19): resolveFromScripts
+  97  Function with high complexity (count = 21): resolveByFuzzyName
+

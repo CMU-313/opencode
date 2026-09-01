@@ -1,0 +1,9 @@
+﻿BEFORE (original smells for packages/desktop/src/main/apps.ts):
+
+packages/desktop/src/main/apps.ts
+  39  Function with many returns (count = 12): resolveWindowsAppPath
+ 119  Deeply nested control flow (level = 5)
+ 126  Deeply nested control flow (level = 5)
+   1  High total complexity (count = 80)
+  39  Function with high complexity (count = 73): resolveWindowsAppPath
+  57  Function with high complexity (count = 22): resolveCmd
