@@ -13,9 +13,9 @@ describe("checkAppExists", () => {
 })
 
 describe("resolveAppPath", () => {
-  test("returns the app name unchanged off Windows", async () => {
+  test("returns the app name unchanged off Windows", () => {
     if (process.platform === "win32") return
-    await expect(resolveAppPath("git")).resolves.toBe("git")
+    expect(resolveAppPath("git")).toBe("git")
   })
 })
 
