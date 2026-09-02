@@ -755,7 +755,7 @@ export function FallbackTool(props: ToolProps) {
 
 // Converts nested objects/arrays into [path, value] pairs.
 // E.g. {a:{b:{c:1}}, d:[{e:2}, 3]} => [["a.b.c",1], ["d[0].e",2], ["d[1]",3]]
-function flattenToolArgs(obj: unknown, prefix: string = ""): Array<[string, unknown]> {
+export function flattenToolArgs(obj: unknown, prefix: string = ""): Array<[string, unknown]> {
   const res: Array<[string, unknown]> = []
   walk(obj, prefix, res)
   return res
