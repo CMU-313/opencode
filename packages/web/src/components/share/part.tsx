@@ -755,33 +755,44 @@ export function FallbackTool(props: ToolProps) {
 
 // Converts nested objects/arrays into [path, value] pairs.
 // E.g. {a:{b:{c:1}}, d:[{e:2}, 3]} => [["a.b.c",1], ["d[0].e",2], ["d[1]",3]]
-function flattenToolArgs(obj: unknown, prefix: string = ""): Array<[string, unknown]> {
-  const entries: Array<[string, unknown]> = []
-  if (typeof obj !== "object" || obj === null) return entries
+export function flattenToolArgs(obj: unknown, prefix: string = ""): Array<[string, unknown]> {
+  const res: Array<[string, unknown]> = []
+  walk(obj, prefix, res)
+  return res
+}
 
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    const path = prefix ? `${prefix}.${key}` : key
-
-    if (value !== null && typeof value === "object") {
-      if (Array.isArray(value)) {
-        value.forEach((item, index) => {
-          const arrayPath = `${path}[${index}]`
-          if (item !== null && typeof item === "object") {
-            entries.push(...flattenToolArgs(item, arrayPath))
-          } else {
-            entries.push([arrayPath, item])
-          }
-        })
-      } else {
-        entries.push(...flattenToolArgs(value, path))
-      }
-    } else {
-      entries.push([path, value])
+function walk(value: unknown, path: string, res: Array<[string, unknown]>) {
+  // 1. base case: value is no longer nested
+  if (typeof value !== "object" || value === null) {
+    res.push([path, formatToolArgValue(value)])
+    return
+  }
+  // 2. recursive case 1: value is an array
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      walk(item, `${path}[${index}]`, res)
+    })
+  } else {
+    // 3. recursive case 2: value is an object
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      const objPath = path ? `${path}.${key}` : key
+      walk(val, objPath, res)
     }
   }
-
-  return entries
 }
+
+function formatToolArgValue(value: unknown): string {
+  if (value == null) return ""
+  switch (typeof value) {
+    case "string":
+    case "number":
+    case "boolean":
+      return String(value)
+    default:
+      return JSON.stringify(value) ?? String(value)
+  }
+}
+
 
 function getProvider(model: string) {
   const lowerModel = model.toLowerCase()
