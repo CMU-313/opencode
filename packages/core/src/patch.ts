@@ -22,6 +22,54 @@ export interface FileUpdate {
   readonly bom: boolean
 }
 
+const ADD_PREFIX = "*** Add File:"
+const DELETE_PREFIX = "*** Delete File:"
+const UPDATE_PREFIX = "*** Update File:"
+const MOVE_PREFIX = "*** Move to:"
+
+interface ParsedHunk {
+  readonly hunk: Hunk
+  readonly next: number
+}
+
+function directivePath(line: string, prefix: string, error: string): string {
+  const path = line.slice(prefix.length).trim()
+  if (!path) throw new Error(error)
+  return path
+}
+
+function parseAddHunk(lines: ReadonlyArray<string>, index: number): ParsedHunk {
+  const path = directivePath(lines[index]!, ADD_PREFIX, "Invalid add file path")
+  const parsed = parseAdd(lines, index + 1)
+  return { hunk: { type: "add", path, contents: parsed.content }, next: parsed.next }
+}
+
+function parseDeleteHunk(lines: ReadonlyArray<string>, index: number): ParsedHunk {
+  const path = directivePath(lines[index]!, DELETE_PREFIX, "Invalid delete file path")
+  return { hunk: { type: "delete", path }, next: index + 1 }
+}
+
+function parseUpdateHunk(lines: ReadonlyArray<string>, index: number): ParsedHunk {
+  const path = directivePath(lines[index]!, UPDATE_PREFIX, "Invalid update file path")
+  let next = index + 1
+  let movePath: string | undefined
+  if (lines[next]?.startsWith(MOVE_PREFIX)) {
+    movePath = directivePath(lines[next]!, MOVE_PREFIX, "Invalid move file path")
+    next++
+  }
+  const parsed = parseUpdate(lines, next)
+  if (parsed.chunks.length === 0) throw new Error(`Invalid update hunk for ${path}: expected at least one @@ chunk`)
+  return { hunk: { type: "update", path, movePath, chunks: parsed.chunks }, next: parsed.next }
+}
+
+function parseHunk(lines: ReadonlyArray<string>, index: number): ParsedHunk {
+  const line = lines[index]!
+  if (line.startsWith(ADD_PREFIX)) return parseAddHunk(lines, index)
+  if (line.startsWith(DELETE_PREFIX)) return parseDeleteHunk(lines, index)
+  if (line.startsWith(UPDATE_PREFIX)) return parseUpdateHunk(lines, index)
+  throw new Error(`Invalid patch line: ${line}`)
+}
+
 export function parse(patchText: string): ReadonlyArray<Hunk> {
   const lines = stripHeredoc(patchText.trim()).split("\n")
   const begin = lines.findIndex((line) => line.trim() === "*** Begin Patch")
@@ -31,39 +79,9 @@ export function parse(patchText: string): ReadonlyArray<Hunk> {
   const hunks: Hunk[] = []
   let index = begin + 1
   while (index < end) {
-    const line = lines[index]!
-    if (line.startsWith("*** Add File:")) {
-      const path = line.slice("*** Add File:".length).trim()
-      if (!path) throw new Error("Invalid add file path")
-      const parsed = parseAdd(lines, index + 1)
-      hunks.push({ type: "add", path, contents: parsed.content })
-      index = parsed.next
-      continue
-    }
-    if (line.startsWith("*** Delete File:")) {
-      const path = line.slice("*** Delete File:".length).trim()
-      if (!path) throw new Error("Invalid delete file path")
-      hunks.push({ type: "delete", path })
-      index++
-      continue
-    }
-    if (line.startsWith("*** Update File:")) {
-      const path = line.slice("*** Update File:".length).trim()
-      if (!path) throw new Error("Invalid update file path")
-      let next = index + 1
-      let movePath: string | undefined
-      if (lines[next]?.startsWith("*** Move to:")) {
-        movePath = lines[next]!.slice("*** Move to:".length).trim()
-        if (!movePath) throw new Error("Invalid move file path")
-        next++
-      }
-      const parsed = parseUpdate(lines, next)
-      if (parsed.chunks.length === 0) throw new Error(`Invalid update hunk for ${path}: expected at least one @@ chunk`)
-      hunks.push({ type: "update", path, movePath, chunks: parsed.chunks })
-      index = parsed.next
-      continue
-    }
-    throw new Error(`Invalid patch line: ${line}`)
+    const parsed = parseHunk(lines, index)
+    hunks.push(parsed.hunk)
+    index = parsed.next
   }
   return hunks
 }
