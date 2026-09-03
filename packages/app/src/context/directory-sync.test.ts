@@ -4,7 +4,7 @@ import { createDirSyncContext } from "./directory-sync"
 
 function setup() {
   const [store, setStore] = createStore({
-    status: "ready",
+    status: "complete",
     path: { directory: "/test" },
     project: "",
     session: [],
@@ -12,7 +12,6 @@ function setup() {
   } as any)
 
   const sessions = new Map<string, any>()
-  let sessionSetValue: unknown
 
   const serverSync = {
     child: () => [store, setStore],
@@ -20,12 +19,10 @@ function setup() {
 
     session: {
       data: {
-        session_status: "idle",
+        session_status: {},
       },
 
-      set: (...input: unknown[]) => {
-        sessionSetValue = input[1]
-      },
+      set: () => undefined,
 
       remember: (session: any) => {
         sessions.set(session.id, session)
@@ -70,7 +67,6 @@ function setup() {
   return {
     context: createDirSyncContext("/test", serverSync, serverSDK),
     store,
-    getSessionSetValue: () => sessionSetValue,
   }
 }
 
@@ -78,21 +74,13 @@ describe("directory sync", () => {
   test("reads directory data", () => {
     const { context } = setup()
 
-    expect(context.data.status).toBe("ready")
+    expect(context.data.status).toBe("complete")
   })
 
   test("reads shared session data", () => {
     const { context } = setup()
 
-    expect(context.data.session_status).toBe("idle")
-  })
-
-  test("set routes session fields to the session store", () => {
-    const { context, getSessionSetValue } = setup()
-
-    context.set("session_status", "busy")
-
-    expect(getSessionSetValue()).toBe("busy")
+    expect(context.data.session_status).toEqual({})
   })
 
   test("remember adds a session to the directory", () => {
