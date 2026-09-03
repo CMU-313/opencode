@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
 import { createDirSyncContext } from "./directory-sync"
 
+// comment to rerun the CI
+
 function setup() {
   const [store, setStore] = createStore({
     status: "complete",
