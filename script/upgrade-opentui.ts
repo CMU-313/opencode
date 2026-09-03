@@ -43,13 +43,14 @@ const files = (await Array.fromAsync(new Bun.Glob("**/package.json").scan({ cwd:
 )
 
 const setVersion = (cur: string, kind: "dep" | "peer") => {
-  if (cur === "catalog:" || cur.startsWith("workspace:")) return cur
-  if (snapshot) return ver
-  if (kind === "peer") return `>=${ver}`
-  if (cur.startsWith(">=")) return `>=${ver}`
-  if (cur.startsWith("^")) return `^${ver}`
-  if (cur.startsWith("~")) return `~${ver}`
-  return ver
+  let result = ver
+  if (cur === "catalog:" || cur.startsWith("workspace:")) result = cur
+  else if (snapshot) result = ver
+  else if (kind === "peer") result = `>=${ver}`
+  else if (cur.startsWith(">=")) result = `>=${ver}`
+  else if (cur.startsWith("^")) result = `^${ver}`
+  else if (cur.startsWith("~")) result = `~${ver}`
+  return result
 }
 
 const editDeps = (obj: unknown, kind: "dep" | "peer") => {
