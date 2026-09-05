@@ -89,109 +89,16 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   const colors = getColors(variant)
   const { overrides = {} } = variant
   const ctx = buildTokenContext(colors, overrides, isDark)
-  const { success, warning, error, info, interactive, amber, primary, accent, diffAdd, diffDelete } = ctx
 
   const tokens: ResolvedTheme = createToken(ctx)
 
   if (colors.compact) {
-    tokens["syntax-comment"] = "var(--text-weak)"
-    tokens["syntax-regexp"] = "var(--text-base)"
-    tokens["syntax-string"] = content(isDark, colors.success, success)
-    tokens["syntax-keyword"] = content(isDark, colors.accent, accent)
-    tokens["syntax-primitive"] = content(isDark, colors.primary, primary)
-    tokens["syntax-operator"] = isDark ? "var(--text-weak)" : "var(--text-base)"
-    tokens["syntax-variable"] = "var(--text-strong)"
-    tokens["syntax-property"] = content(isDark, colors.info, info)
-    tokens["syntax-type"] = content(isDark, colors.warning, warning)
-    tokens["syntax-constant"] = content(isDark, colors.accent, accent)
-    tokens["syntax-punctuation"] = isDark ? "var(--text-weak)" : "var(--text-base)"
-    tokens["syntax-object"] = "var(--text-strong)"
-    tokens["syntax-success"] = success[10]
-    tokens["syntax-warning"] = amber[10]
-    tokens["syntax-critical"] = error[10]
-    tokens["syntax-info"] = content(isDark, colors.info, info)
-    tokens["syntax-diff-add"] = diffAdd[10]
-    tokens["syntax-diff-delete"] = diffDelete[10]
-    tokens["syntax-diff-unknown"] = "#ff0000"
-
-    tokens["markdown-heading"] = content(isDark, colors.primary, primary)
-    tokens["markdown-text"] = tokens["text-base"]
-    tokens["markdown-link"] = content(isDark, colors.interactive, interactive)
-    tokens["markdown-link-text"] = content(isDark, colors.info, info)
-    tokens["markdown-code"] = content(isDark, colors.success, success)
-    tokens["markdown-block-quote"] = content(isDark, colors.warning, warning)
-    tokens["markdown-emph"] = content(isDark, colors.warning, warning)
-    tokens["markdown-strong"] = content(isDark, colors.accent, accent)
-    tokens["markdown-horizontal-rule"] = tokens["border-base"]
-    tokens["markdown-list-item"] = content(isDark, colors.interactive, interactive)
-    tokens["markdown-list-enumeration"] = content(isDark, colors.info, info)
-    tokens["markdown-image"] = content(isDark, colors.interactive, interactive)
-    tokens["markdown-image-text"] = content(isDark, colors.info, info)
-    tokens["markdown-code-block"] = tokens["text-base"]
+    addCompactTokenProperties(ctx, tokens)
+  } else {
+    addNonCompactTokenProperties(ctx, tokens)
   }
 
-  if (!colors.compact) {
-    tokens["syntax-comment"] = "var(--text-weak)"
-    tokens["syntax-regexp"] = "var(--text-base)"
-    tokens["syntax-string"] = isDark ? "#00ceb9" : "#006656"
-    tokens["syntax-keyword"] = "var(--text-weak)"
-    tokens["syntax-primitive"] = isDark ? "#ffba92" : "#fb4804"
-    tokens["syntax-operator"] = isDark ? "var(--text-weak)" : "var(--text-base)"
-    tokens["syntax-variable"] = "var(--text-strong)"
-    tokens["syntax-property"] = isDark ? "#ff9ae2" : "#ed6dc8"
-    tokens["syntax-type"] = isDark ? "#ecf58c" : "#596600"
-    tokens["syntax-constant"] = isDark ? "#93e9f6" : "#007b80"
-    tokens["syntax-punctuation"] = isDark ? "var(--text-weak)" : "var(--text-base)"
-    tokens["syntax-object"] = "var(--text-strong)"
-    tokens["syntax-success"] = success[10]
-    tokens["syntax-warning"] = amber[10]
-    tokens["syntax-critical"] = error[10]
-    tokens["syntax-info"] = isDark ? "#93e9f6" : "#0092a8"
-    tokens["syntax-diff-add"] = diffAdd[10]
-    tokens["syntax-diff-delete"] = diffDelete[10]
-    tokens["syntax-diff-unknown"] = "#ff0000"
-
-    tokens["markdown-heading"] = isDark ? "#9d7cd8" : "#d68c27"
-    tokens["markdown-text"] = isDark ? "#eeeeee" : "#1a1a1a"
-    tokens["markdown-link"] = isDark ? "#fab283" : "#3b7dd8"
-    tokens["markdown-link-text"] = isDark ? "#56b6c2" : "#318795"
-    tokens["markdown-code"] = isDark ? "#7fd88f" : "#3d9a57"
-    tokens["markdown-block-quote"] = isDark ? "#e5c07b" : "#b0851f"
-    tokens["markdown-emph"] = isDark ? "#e5c07b" : "#b0851f"
-    tokens["markdown-strong"] = isDark ? "#f5a742" : "#d68c27"
-    tokens["markdown-horizontal-rule"] = isDark ? "#808080" : "#8a8a8a"
-    tokens["markdown-list-item"] = isDark ? "#fab283" : "#3b7dd8"
-    tokens["markdown-list-enumeration"] = isDark ? "#56b6c2" : "#318795"
-    tokens["markdown-image"] = isDark ? "#fab283" : "#3b7dd8"
-    tokens["markdown-image-text"] = isDark ? "#56b6c2" : "#318795"
-    tokens["markdown-code-block"] = isDark ? "#eeeeee" : "#1a1a1a"
-  }
-
-  for (const [key, value] of Object.entries(overrides)) {
-    tokens[key] = value
-  }
-
-  if (colors.compact && "text-weak" in overrides && !("text-weaker" in overrides)) {
-    const weak = tokens["text-weak"]
-    if (weak.startsWith("#")) {
-      tokens["text-weaker"] = shift(weak as HexColor, { l: isDark ? -0.12 : 0.12, c: 0.75 })
-    } else {
-      tokens["text-weaker"] = weak
-    }
-  }
-
-  if (colors.compact) {
-    if (!("markdown-text" in overrides)) {
-      tokens["markdown-text"] = tokens["text-base"]
-    }
-    if (!("markdown-code-block" in overrides)) {
-      tokens["markdown-code-block"] = tokens["text-base"]
-    }
-  }
-
-  if (!("text-stronger" in overrides)) {
-    tokens["text-stronger"] = tokens["text-strong"]
-  }
+  applyOverridePostProcessing(tokens, overrides, colors, isDark)
 
   return tokens
 }
@@ -743,6 +650,123 @@ export function buildAvatarTokens(ctx: TokenContext, tokens: ResolvedTheme): voi
   tokens["avatar-text-purple"] = isDark ? "#9d5bd2" : "#8445bc"
   tokens["avatar-text-cyan"] = isDark ? "#369eff" : "#0894b3"
   tokens["avatar-text-lime"] = isDark ? "#c4f042" : "#5d770d"
+}
+
+export function addCompactTokenProperties(ctx: TokenContext, tokens: ResolvedTheme): ResolvedTheme {
+  const {colors, success, accent, primary, isDark, info, warning, diffAdd,
+    diffDelete, interactive, amber, error
+  } = ctx
+
+  tokens["syntax-comment"] = "var(--text-weak)"
+  tokens["syntax-regexp"] = "var(--text-base)"
+  tokens["syntax-string"] = content(isDark, colors.success, success)
+  tokens["syntax-keyword"] = content(isDark, colors.accent, accent)
+  tokens["syntax-primitive"] = content(isDark, colors.primary, primary)
+  tokens["syntax-operator"] = isDark ? "var(--text-weak)" : "var(--text-base)"
+  tokens["syntax-variable"] = "var(--text-strong)"
+  tokens["syntax-property"] = content(isDark, colors.info, info)
+  tokens["syntax-type"] = content(isDark, colors.warning, warning)
+  tokens["syntax-constant"] = content(isDark, colors.accent, accent)
+  tokens["syntax-punctuation"] = isDark ? "var(--text-weak)" : "var(--text-base)"
+  tokens["syntax-object"] = "var(--text-strong)"
+  tokens["syntax-success"] = success[10]
+  tokens["syntax-warning"] = amber[10]
+  tokens["syntax-critical"] = error[10]
+  tokens["syntax-info"] = content(isDark, colors.info, info)
+  tokens["syntax-diff-add"] = diffAdd[10]
+  tokens["syntax-diff-delete"] = diffDelete[10]
+  tokens["syntax-diff-unknown"] = "#ff0000"
+
+  tokens["markdown-heading"] = content(isDark, colors.primary, primary)
+  tokens["markdown-text"] = tokens["text-base"]
+  tokens["markdown-link"] = content(isDark, colors.interactive, interactive)
+  tokens["markdown-link-text"] = content(isDark, colors.info, info)
+  tokens["markdown-code"] = content(isDark, colors.success, success)
+  tokens["markdown-block-quote"] = content(isDark, colors.warning, warning)
+  tokens["markdown-emph"] = content(isDark, colors.warning, warning)
+  tokens["markdown-strong"] = content(isDark, colors.accent, accent)
+  tokens["markdown-horizontal-rule"] = tokens["border-base"]
+  tokens["markdown-list-item"] = content(isDark, colors.interactive, interactive)
+  tokens["markdown-list-enumeration"] = content(isDark, colors.info, info)
+  tokens["markdown-image"] = content(isDark, colors.interactive, interactive)
+  tokens["markdown-image-text"] = content(isDark, colors.info, info)
+  tokens["markdown-code-block"] = tokens["text-base"]
+  return tokens
+}
+
+const NON_COMPACT_HEX_TOKENS: Record<string, readonly [dark: HexColor, light: HexColor]> = {
+  "syntax-string": ["#00ceb9", "#006656"],
+  "syntax-primitive": ["#ffba92", "#fb4804"],
+  "syntax-property": ["#ff9ae2", "#ed6dc8"],
+  "syntax-type": ["#ecf58c", "#596600"],
+  "syntax-constant": ["#93e9f6", "#007b80"],
+  "syntax-info": ["#93e9f6", "#0092a8"],
+  "markdown-heading": ["#9d7cd8", "#d68c27"],
+  "markdown-text": ["#eeeeee", "#1a1a1a"],
+  "markdown-link": ["#fab283", "#3b7dd8"],
+  "markdown-link-text": ["#56b6c2", "#318795"],
+  "markdown-code": ["#7fd88f", "#3d9a57"],
+  "markdown-block-quote": ["#e5c07b", "#b0851f"],
+  "markdown-emph": ["#e5c07b", "#b0851f"],
+  "markdown-strong": ["#f5a742", "#d68c27"],
+  "markdown-horizontal-rule": ["#808080", "#8a8a8a"],
+  "markdown-list-item": ["#fab283", "#3b7dd8"],
+  "markdown-list-enumeration": ["#56b6c2", "#318795"],
+  "markdown-image": ["#fab283", "#3b7dd8"],
+  "markdown-image-text": ["#56b6c2", "#318795"],
+  "markdown-code-block": ["#eeeeee", "#1a1a1a"],
+}
+
+function addNonCompactTokenProperties(ctx: TokenContext, tokens: ResolvedTheme): ResolvedTheme {
+  const { isDark, success, amber, error, diffAdd, diffDelete } = ctx
+
+  for (const [key, [dark, light]] of Object.entries(NON_COMPACT_HEX_TOKENS)) {
+    tokens[key] = isDark ? dark : light
+  }
+
+  tokens["syntax-comment"] = "var(--text-weak)"
+  tokens["syntax-regexp"] = "var(--text-base)"
+  tokens["syntax-keyword"] = "var(--text-weak)"
+  tokens["syntax-operator"] = isDark ? "var(--text-weak)" : "var(--text-base)"
+  tokens["syntax-variable"] = "var(--text-strong)"
+  tokens["syntax-punctuation"] = isDark ? "var(--text-weak)" : "var(--text-base)"
+  tokens["syntax-object"] = "var(--text-strong)"
+  tokens["syntax-success"] = success[10]
+  tokens["syntax-warning"] = amber[10]
+  tokens["syntax-critical"] = error[10]
+  tokens["syntax-diff-add"] = diffAdd[10]
+  tokens["syntax-diff-delete"] = diffDelete[10]
+  tokens["syntax-diff-unknown"] = "#ff0000"
+  return tokens
+}
+
+export function applyOverridePostProcessing(
+  tokens: ResolvedTheme,
+  overrides: Record<string, ColorValue>,
+  colors: ThemeColors,
+  isDark: boolean,
+): void {
+  for (const [key, value] of Object.entries(overrides)) {
+    tokens[key] = value
+  }
+
+  if (colors.compact && "text-weak" in overrides && !("text-weaker" in overrides)) {
+    const weak = tokens["text-weak"]
+    tokens["text-weaker"] = weak.startsWith("#") ? shift(weak as HexColor, { l: isDark ? -0.12 : 0.12, c: 0.75 }) : weak
+  }
+
+  if (colors.compact) {
+    if (!("markdown-text" in overrides)) {
+      tokens["markdown-text"] = tokens["text-base"]
+    }
+    if (!("markdown-code-block" in overrides)) {
+      tokens["markdown-code-block"] = tokens["text-base"]
+    }
+  }
+
+  if (!("text-stronger" in overrides)) {
+    tokens["text-stronger"] = tokens["text-strong"]
+  }
 }
 
 export function resolveTheme(theme: DesktopTheme): { light: ResolvedTheme; dark: ResolvedTheme } {
