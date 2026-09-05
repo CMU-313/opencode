@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
+  addCompactTokenProperties,
+  applyOverridePostProcessing,
   buildAvatarTokens,
   buildIconTokens,
   buildScales,
@@ -13,7 +15,7 @@ import {
   type ThemeColors,
   type ToneContext,
 } from "./resolve"
-import type { ResolvedTheme, ThemeVariant } from "./types"
+import type { ColorValue, ResolvedTheme, ThemeVariant } from "./types"
 
 describe("getColors", () => {
   test("resolves a palette variant into compact ThemeColors with fallbacks", () => {
@@ -640,6 +642,124 @@ describe("buildAvatarTokens", () => {
       "avatar-text-purple": "#8445bc",
       "avatar-text-cyan": "#0894b3",
       "avatar-text-lime": "#5d770d",
+    })
+  })
+})
+
+describe("addCompactTokenProperties", () => {
+  test("populates syntax and markdown tokens for dark mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, true)
+    const tokens: ResolvedTheme = { "text-base": "#111111", "border-base": "#222222" }
+    addCompactTokenProperties(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "text-base": "#111111",
+      "border-base": "#222222",
+      "syntax-comment": "var(--text-weak)",
+      "syntax-regexp": "var(--text-base)",
+      "syntax-string": "#80ff9e",
+      "syntax-keyword": "#dfd9fe",
+      "syntax-primitive": "#cee0fc",
+      "syntax-operator": "var(--text-weak)",
+      "syntax-variable": "var(--text-strong)",
+      "syntax-property": "#bfe5fd",
+      "syntax-type": "#fed7ac",
+      "syntax-constant": "#dfd9fe",
+      "syntax-punctuation": "var(--text-weak)",
+      "syntax-object": "var(--text-strong)",
+      "syntax-success": "#36fb7c",
+      "syntax-warning": "#fdc7a4",
+      "syntax-critical": "#fec3bd",
+      "syntax-info": "#bfe5fd",
+      "syntax-diff-add": "#41fa7c",
+      "syntax-diff-delete": "#fbc4bd",
+      "syntax-diff-unknown": "#ff0000",
+      "markdown-heading": "#cee0fc",
+      "markdown-text": "#111111",
+      "markdown-link": "#d6ddfe",
+      "markdown-link-text": "#bfe5fd",
+      "markdown-code": "#80ff9e",
+      "markdown-block-quote": "#fed7ac",
+      "markdown-emph": "#fed7ac",
+      "markdown-strong": "#dfd9fe",
+      "markdown-horizontal-rule": "#222222",
+      "markdown-list-item": "#d6ddfe",
+      "markdown-list-enumeration": "#bfe5fd",
+      "markdown-image": "#d6ddfe",
+      "markdown-image-text": "#bfe5fd",
+      "markdown-code-block": "#111111",
+    })
+  })
+
+  test("populates syntax and markdown tokens for light mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, false)
+    const tokens: ResolvedTheme = { "text-base": "#111111", "border-base": "#222222" }
+    addCompactTokenProperties(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "text-base": "#111111",
+      "border-base": "#222222",
+      "syntax-comment": "var(--text-weak)",
+      "syntax-regexp": "var(--text-base)",
+      "syntax-string": "#046c2f",
+      "syntax-keyword": "#6815d3",
+      "syntax-primitive": "#1153b8",
+      "syntax-operator": "var(--text-base)",
+      "syntax-variable": "var(--text-strong)",
+      "syntax-property": "#0b6189",
+      "syntax-type": "#7c4e05",
+      "syntax-constant": "#6815d3",
+      "syntax-punctuation": "var(--text-base)",
+      "syntax-object": "var(--text-strong)",
+      "syntax-success": "#077433",
+      "syntax-warning": "#9a4301",
+      "syntax-critical": "#b7001a",
+      "syntax-info": "#0b6189",
+      "syntax-diff-add": "#0f7433",
+      "syntax-diff-delete": "#b21a1b",
+      "syntax-diff-unknown": "#ff0000",
+      "markdown-heading": "#1153b8",
+      "markdown-text": "#111111",
+      "markdown-link": "#4809f1",
+      "markdown-link-text": "#0b6189",
+      "markdown-code": "#046c2f",
+      "markdown-block-quote": "#7c4e05",
+      "markdown-emph": "#7c4e05",
+      "markdown-strong": "#6815d3",
+      "markdown-horizontal-rule": "#222222",
+      "markdown-list-item": "#4809f1",
+      "markdown-list-enumeration": "#0b6189",
+      "markdown-image": "#4809f1",
+      "markdown-image-text": "#0b6189",
+      "markdown-code-block": "#111111",
+    })
+  })
+})
+
+describe("applyOverridePostProcessing", () => {
+  test("applies overrides, derives text-weaker/markdown-*/text-stronger fallbacks in compact mode", () => {
+    const overrides: Record<string, ColorValue> = {
+      "background-base": "#101010",
+      "text-weak": "#334455",
+    }
+    const tokens: ResolvedTheme = {
+      "background-base": "#000000",
+      "text-base": "#ffffff",
+      "text-strong": "#eeeeee",
+      "text-weak": "#aaaaaa",
+    }
+
+    applyOverridePostProcessing(tokens, overrides, sampleColors, true)
+
+    expect(tokens).toEqual({
+      "background-base": "#101010", // raw override applied
+      "text-base": "#ffffff",
+      "text-strong": "#eeeeee",
+      "text-weak": "#334455", // raw override applied
+      "text-weaker": "#192531", // derived from the overridden text-weak since text-weaker wasn't overridden
+      "markdown-text": "#ffffff", // defaulted to text-base since not overridden
+      "markdown-code-block": "#ffffff", // defaulted to text-base since not overridden
+      "text-stronger": "#eeeeee", // defaulted to text-strong since not overridden
     })
   })
 })
