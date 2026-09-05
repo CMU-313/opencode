@@ -1,42 +1,131 @@
 import type { ColorValue, DesktopTheme, HexColor, ResolvedTheme, ThemeVariant } from "./types"
 import { blend, generateNeutralScale, generateScale, hexToOklch, hexToRgb, shift, withAlpha } from "./color"
 
+export interface ThemeColors {
+  compact: boolean
+  neutral: HexColor
+  ink?: HexColor
+  primary: HexColor
+  accent: HexColor
+  success: HexColor
+  warning: HexColor
+  error: HexColor
+  info: HexColor
+  interactive: HexColor
+  diffAdd?: HexColor
+  diffDelete?: HexColor
+}
+
+export interface ToneContext {
+  ink: HexColor
+  overlay: boolean
+  background: HexColor
+  isDark: boolean
+  compact: boolean
+}
+
+export interface SurfaceTones {
+  base: ColorValue
+  weak: ColorValue
+  weaker: ColorValue
+  strong: ColorValue
+  stronger: ColorValue
+}
+
+export interface TokenContext {
+  isDark: boolean
+  colors: ThemeColors
+  tone: ToneContext
+  neutral: HexColor[]
+  neutralAlpha: HexColor[]
+  primary: HexColor[]
+  accent: HexColor[]
+  success: HexColor[]
+  warning: HexColor[]
+  error: HexColor[]
+  info: HexColor[]
+  interactive: HexColor[]
+  amber: HexColor[]
+  blue: HexColor[]
+  diffAdd: HexColor[]
+  diffDelete: HexColor[]
+  diffHiddenSurface: SurfaceTones
+  body?: HexColor
+  brandb: HexColor
+  brandh: HexColor
+  interb: HexColor
+  interh: HexColor
+  interw: HexColor
+  succb: HexColor
+  succw: HexColor
+  succs: HexColor
+  warnb: HexColor
+  warnw: HexColor
+  warns: HexColor
+  critb: HexColor
+  critw: HexColor
+  crits: HexColor
+  infob: HexColor
+  infow: HexColor
+  infos: HexColor
+}
+
+export interface ColorScales {
+  neutral: HexColor[]
+  primary: HexColor[]
+  accent: HexColor[]
+  success: HexColor[]
+  warning: HexColor[]
+  error: HexColor[]
+  info: HexColor[]
+  interactive: HexColor[]
+  amber: HexColor[]
+  blue: HexColor[]
+  diffAdd: HexColor[]
+  diffDelete: HexColor[]
+}
+
 export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): ResolvedTheme {
   const colors = getColors(variant)
   const { overrides = {} } = variant
+  const ctx = buildTokenContext(colors, overrides, isDark)
+  const {
+    tone,
+    neutral,
+    primary,
+    accent,
+    success,
+    warning,
+    error,
+    info,
+    interactive,
+    amber,
+    blue,
+    diffAdd,
+    diffDelete,
+    neutralAlpha,
+    diffHiddenSurface,
+    body,
+    brandb,
+    brandh,
+    interb,
+    interh,
+    interw,
+    succb,
+    succw,
+    succs,
+    warnb,
+    warnw,
+    warns,
+    critb,
+    critw,
+    crits,
+    infob,
+    infow,
+    infos,
+  } = ctx
+  const { ink, overlay, background } = tone
 
-  const neutral = generateNeutralScale(colors.neutral, isDark, colors.ink)
-  const primary = generateScale(colors.primary, isDark)
-  const accent = generateScale(colors.accent, isDark)
-  const success = generateScale(colors.success, isDark)
-  const warning = generateScale(colors.warning, isDark)
-  const error = generateScale(colors.error, isDark)
-  const info = generateScale(colors.info, isDark)
-  const interactive = generateScale(colors.interactive, isDark)
-  const amber = generateScale(
-    shift(colors.warning, isDark ? { h: -16, l: -0.058, c: 1.14 } : { h: -22, l: -0.082, c: 0.94 }),
-    isDark,
-  )
-  const blue = generateScale(shift(colors.interactive, { h: -12, l: 0.128, c: 1.12 }), isDark)
-  const diffAdd = generateScale(
-    colors.diffAdd ?? shift(colors.success, { c: isDark ? 0.7 : 0.55, l: isDark ? -0.18 : 0.14 }),
-    isDark,
-  )
-  const diffDelete = generateScale(
-    colors.diffDelete ?? shift(colors.error, { c: isDark ? 0.82 : 0.7, l: isDark ? -0.08 : 0.08 }),
-    isDark,
-  )
-  const ink = colors.ink ?? colors.neutral
-  const tint = colors.compact ? hexToOklch(ink) : undefined
-  const body = tint
-    ? shift(ink, {
-        l: isDark ? Math.max(0, 0.88 - tint.l) * 0.4 : -Math.max(0, tint.l - 0.18) * 0.24,
-        c: isDark ? 1.04 : 1.02,
-      })
-    : undefined
-  const backgroundOverride = overrides["background-base"]
-  const backgroundHex = getHex(backgroundOverride)
-  const overlay = Boolean(backgroundOverride) && !backgroundHex
   const content = (seed: HexColor, scale: HexColor[]) => {
     const base = hexToOklch(seed)
     const value = isDark ? (base.l > 0.84 ? shift(seed, { c: 1.18 }) : scale[10]) : scale[10]
@@ -50,49 +139,10 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
     if (delta < 48) return isDark ? "#ffba92" : "#FF8C00"
     return content(colors.warning, warning)
   }
-  const surface = (
-    seed: HexColor,
-    alpha: { base: number; weak: number; weaker: number; strong: number; stronger: number },
-  ) => {
-    const base = alphaTone(seed, alpha.base)
-    return {
-      base,
-      weak: alphaTone(seed, alpha.weak),
-      weaker: alphaTone(seed, alpha.weaker),
-      strong: alphaTone(seed, alpha.strong),
-      stronger: alphaTone(seed, alpha.stronger),
-    }
-  }
-  const background = backgroundHex ?? neutral[0]
   const alphaTone = (color: HexColor, alpha: number) =>
     overlay ? (withAlpha(color, alpha) as ColorValue) : blend(color, background, alpha)
   const borderTone = (light: number, dark: number) =>
     alphaTone(ink, isDark ? Math.min(1, dark + 0.024 + (colors.compact ? 0.08 : 0)) : Math.min(1, light + 0.024))
-  const diffHiddenSurface = surface(
-    isDark ? shift(colors.interactive, { c: 0.55, l: 0 }) : shift(colors.interactive, { c: 0.45, l: 0.08 }),
-    isDark
-      ? { base: 0.14, weak: 0.08, weaker: 0.18, strong: 0.26, stronger: 0.42 }
-      : { base: 0.12, weak: 0.08, weaker: 0.16, strong: 0.24, stronger: 0.36 },
-  )
-
-  const neutralAlpha = generateNeutralAlphaScale(neutral, isDark)
-  const brandb = primary[8]
-  const brandh = primary[9]
-  const interb = interactive[isDark ? 6 : 4]
-  const interh = interactive[isDark ? 7 : 5]
-  const interw = interactive[isDark ? 5 : 3]
-  const succb = success[isDark ? 6 : 4]
-  const succw = success[isDark ? 5 : 3]
-  const succs = success[10]
-  const warnb = warning[isDark ? 6 : 4]
-  const warnw = warning[isDark ? 5 : 3]
-  const warns = warning[10]
-  const critb = error[isDark ? 6 : 4]
-  const critw = error[isDark ? 5 : 3]
-  const crits = error[10]
-  const infob = info[isDark ? 6 : 4]
-  const infow = info[isDark ? 5 : 3]
-  const infos = info[10]
   const lum = (hex: HexColor) => {
     const rgb = hexToRgb(hex)
     const lift = (v: number) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
@@ -455,22 +505,38 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   return tokens
 }
 
-interface ThemeColors {
-  compact: boolean
-  neutral: HexColor
-  ink?: HexColor
-  primary: HexColor
-  accent: HexColor
-  success: HexColor
-  warning: HexColor
-  error: HexColor
-  info: HexColor
-  interactive: HexColor
-  diffAdd?: HexColor
-  diffDelete?: HexColor
+export function buildTokenContext(colors: ThemeColors, overrides: Record<string, ColorValue>, isDark: boolean): TokenContext {
+  const { neutral, primary, accent, success, warning, error, info, interactive, amber, blue, diffAdd, diffDelete } =
+    buildScales(colors, isDark)
+
+  const ink = colors.ink ?? colors.neutral
+  const body = computeCompactBody(colors, ink, isDark)
+  const tone = computeToneContext(colors, overrides, neutral, ink, isDark)
+  const diffHiddenSurface = computeDiffHiddenSurface(tone, colors, isDark)
+  const neutralAlpha = generateNeutralAlphaScale(neutral, isDark)
+
+  const brandb = primary[8]
+  const brandh = primary[9]
+  const interb = interactive[isDark ? 6 : 4]
+  const interh = interactive[isDark ? 7 : 5]
+  const interw = interactive[isDark ? 5 : 3]
+  const successShades = semanticShades(success, isDark)
+  const warningShades = semanticShades(warning, isDark)
+  const errorShades = semanticShades(error, isDark)
+  const infoShades = semanticShades(info, isDark)
+
+  return {
+    isDark, colors, tone, neutral, primary, accent,
+    success, warning, error, info, interactive, amber, blue, diffAdd, diffDelete,
+    neutralAlpha, diffHiddenSurface, body, brandb, brandh, interb, interh, interw,
+    succb: successShades.base, succw: successShades.weak, succs: successShades.strong,
+    warnb: warningShades.base, warnw: warningShades.weak, warns: warningShades.strong,
+    critb: errorShades.base, critw: errorShades.weak, crits: errorShades.strong,
+    infob: infoShades.base, infow: infoShades.weak, infos: infoShades.strong,
+  }
 }
 
-function getColors(variant: ThemeVariant): ThemeColors {
+export function getColors(variant: ThemeVariant): ThemeColors {
   const input = variant as { palette?: unknown; seeds?: unknown }
   if (input.palette && input.seeds) {
     throw new Error("Theme variant cannot define both `palette` and `seeds`")
@@ -513,6 +579,82 @@ function getColors(variant: ThemeVariant): ThemeColors {
   throw new Error("Theme variant requires `palette` or `seeds`")
 }
 
+export function buildScales(colors: ThemeColors, isDark: boolean): ColorScales {
+  const amberSeed = shift(colors.warning, isDark ? { h: -16, l: -0.058, c: 1.14 } : { h: -22, l: -0.082, c: 0.94 })
+  const diffAddSeed = colors.diffAdd ?? shift(colors.success, { c: isDark ? 0.7 : 0.55, l: isDark ? -0.18 : 0.14 })
+  const diffDeleteSeed = colors.diffDelete ?? shift(colors.error, { c: isDark ? 0.82 : 0.7, l: isDark ? -0.08 : 0.08 })
+
+  return {
+    neutral: generateNeutralScale(colors.neutral, isDark, colors.ink),
+    primary: generateScale(colors.primary, isDark),
+    accent: generateScale(colors.accent, isDark),
+    success: generateScale(colors.success, isDark),
+    warning: generateScale(colors.warning, isDark),
+    error: generateScale(colors.error, isDark),
+    info: generateScale(colors.info, isDark),
+    interactive: generateScale(colors.interactive, isDark),
+    amber: generateScale(amberSeed, isDark),
+    blue: generateScale(shift(colors.interactive, { h: -12, l: 0.128, c: 1.12 }), isDark),
+    diffAdd: generateScale(diffAddSeed, isDark),
+    diffDelete: generateScale(diffDeleteSeed, isDark),
+  }
+}
+
+export function computeCompactBody(colors: ThemeColors, ink: HexColor, isDark: boolean): HexColor | undefined {
+  if (!colors.compact) return undefined
+  const tint = hexToOklch(ink)
+  return shift(ink, {
+    l: isDark ? Math.max(0, 0.88 - tint.l) * 0.4 : -Math.max(0, tint.l - 0.18) * 0.24,
+    c: isDark ? 1.04 : 1.02,
+  })
+}
+
+export function computeToneContext(
+  colors: ThemeColors,
+  overrides: Record<string, ColorValue>,
+  neutral: HexColor[],
+  ink: HexColor,
+  isDark: boolean,
+): ToneContext {
+  const backgroundOverride = overrides["background-base"]
+  const backgroundHex = getHex(backgroundOverride)
+  const overlay = Boolean(backgroundOverride) && !backgroundHex
+  const background = backgroundHex ?? neutral[0]
+  return { ink, overlay, background, isDark, compact: colors.compact }
+}
+
+function getHex(value: ColorValue | undefined): HexColor | undefined {
+  if (!value?.startsWith("#")) return
+  return value as HexColor
+}
+
+function computeDiffHiddenSurface(tone: ToneContext, colors: ThemeColors, isDark: boolean): SurfaceTones {
+  const seed = isDark ? shift(colors.interactive, { c: 0.55, l: 0 }) : shift(colors.interactive, { c: 0.45, l: 0.08 })
+  const alpha = isDark
+    ? { base: 0.14, weak: 0.08, weaker: 0.18, strong: 0.26, stronger: 0.42 }
+    : { base: 0.12, weak: 0.08, weaker: 0.16, strong: 0.24, stronger: 0.36 }
+  return surface(tone, seed, alpha)
+}
+
+export function surface(
+  tone: ToneContext,
+  seed: HexColor,
+  alpha: { base: number; weak: number; weaker: number; strong: number; stronger: number },
+): SurfaceTones {
+  const base = alphaTone(tone, seed, alpha.base)
+  return {
+    base,
+    weak: alphaTone(tone, seed, alpha.weak),
+    weaker: alphaTone(tone, seed, alpha.weaker),
+    strong: alphaTone(tone, seed, alpha.strong),
+    stronger: alphaTone(tone, seed, alpha.stronger),
+  }
+}
+
+function alphaTone(tone: ToneContext, color: HexColor, alpha: number): ColorValue {
+  return tone.overlay ? (withAlpha(color, alpha) as ColorValue) : blend(color, tone.background, alpha)
+}
+
 function generateNeutralAlphaScale(neutralScale: HexColor[], isDark: boolean): HexColor[] {
   const alphas = isDark
     ? [0.038, 0.066, 0.1, 0.142, 0.19, 0.252, 0.334, 0.446, 0.58, 0.718, 0.854, 0.985]
@@ -521,9 +663,12 @@ function generateNeutralAlphaScale(neutralScale: HexColor[], isDark: boolean): H
   return alphas.map((alpha) => blend(neutralScale[11], neutralScale[0], alpha))
 }
 
-function getHex(value: ColorValue | undefined): HexColor | undefined {
-  if (!value?.startsWith("#")) return
-  return value as HexColor
+function semanticShades(scale: HexColor[], isDark: boolean): { base: HexColor; weak: HexColor; strong: HexColor } {
+  return {
+    base: scale[isDark ? 6 : 4],
+    weak: scale[isDark ? 5 : 3],
+    strong: scale[10],
+  }
 }
 
 export function resolveTheme(theme: DesktopTheme): { light: ResolvedTheme; dark: ResolvedTheme } {
