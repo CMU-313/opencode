@@ -162,84 +162,9 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   }
 
   const tokens: ResolvedTheme = {}
-
-  tokens["background-base"] = neutral[0]
-  tokens["background-weak"] = neutral[2]
-  tokens["background-strong"] = neutral[0]
-  tokens["background-stronger"] = isDark ? neutral[1] : "#fcfcfc"
-
-  tokens["surface-base"] = neutralAlpha[1]
-  tokens["base"] = neutralAlpha[1]
-  tokens["surface-base-hover"] = neutralAlpha[2]
-  tokens["surface-base-active"] = neutralAlpha[2]
-  tokens["surface-base-interactive-active"] = withAlpha(interactive[2], 0.3) as ColorValue
-  tokens["base2"] = neutralAlpha[1]
-  tokens["base3"] = neutralAlpha[1]
-  tokens["surface-inset-base"] = neutralAlpha[1]
-  tokens["surface-inset-base-hover"] = neutralAlpha[2]
-  tokens["surface-inset-strong"] = isDark
-    ? (withAlpha(neutral[0], 0.5) as ColorValue)
-    : (withAlpha(neutral[3], 0.09) as ColorValue)
-  tokens["surface-inset-strong-hover"] = tokens["surface-inset-strong"]
-  tokens["surface-raised-base"] = neutralAlpha[0]
-  tokens["surface-float-base"] = isDark ? neutral[1] : neutral[11]
-  tokens["surface-float-base-hover"] = isDark ? neutral[2] : neutral[10]
-  tokens["surface-raised-base-hover"] = neutralAlpha[1]
-  tokens["surface-raised-base-active"] = neutralAlpha[2]
-  tokens["surface-raised-strong"] = isDark ? neutralAlpha[3] : neutral[0]
-  tokens["surface-raised-strong-hover"] = isDark ? neutralAlpha[5] : "#ffffff"
-  tokens["surface-raised-stronger"] = isDark ? neutralAlpha[5] : "#ffffff"
-  tokens["surface-raised-stronger-hover"] = isDark ? neutralAlpha[6] : "#ffffff"
-  tokens["surface-weak"] = neutralAlpha[2]
-  tokens["surface-weaker"] = neutralAlpha[3]
-  tokens["surface-strong"] = isDark ? neutralAlpha[6] : "#ffffff"
-  tokens["surface-raised-stronger-non-alpha"] = isDark ? neutral[2] : "#ffffff"
-
-  tokens["surface-brand-base"] = brandb
-  tokens["surface-brand-hover"] = brandh
-
-  tokens["surface-interactive-base"] = interb
-  tokens["surface-interactive-hover"] = interh
-  tokens["surface-interactive-weak"] = interw
-  tokens["surface-interactive-weak-hover"] = interb
-
-  tokens["surface-success-base"] = succb
-  tokens["surface-success-weak"] = succw
-  tokens["surface-success-strong"] = succs
-  tokens["surface-warning-base"] = warnb
-  tokens["surface-warning-weak"] = warnw
-  tokens["surface-warning-strong"] = warns
-  tokens["surface-critical-base"] = critb
-  tokens["surface-critical-weak"] = critw
-  tokens["surface-critical-strong"] = crits
-  tokens["surface-info-base"] = infob
-  tokens["surface-info-weak"] = infow
-  tokens["surface-info-strong"] = infos
-
-  tokens["surface-diff-unchanged-base"] = isDark ? neutral[0] : "#ffffff00"
-  tokens["surface-diff-skip-base"] = isDark ? neutralAlpha[0] : neutral[1]
-  tokens["surface-diff-hidden-base"] = diffHiddenSurface.base
-  tokens["surface-diff-hidden-weak"] = diffHiddenSurface.weak
-  tokens["surface-diff-hidden-weaker"] = diffHiddenSurface.weaker
-  tokens["surface-diff-hidden-strong"] = diffHiddenSurface.strong
-  tokens["surface-diff-hidden-stronger"] = diffHiddenSurface.stronger
-  tokens["surface-diff-add-base"] = diffAdd[2]
-  tokens["surface-diff-add-weak"] = diffAdd[isDark ? 3 : 1]
-  tokens["surface-diff-add-weaker"] = diffAdd[isDark ? 2 : 0]
-  tokens["surface-diff-add-strong"] = diffAdd[4]
-  tokens["surface-diff-add-stronger"] = diffAdd[isDark ? 10 : 8]
-  tokens["surface-diff-delete-base"] = diffDelete[2]
-  tokens["surface-diff-delete-weak"] = diffDelete[isDark ? 3 : 1]
-  tokens["surface-diff-delete-weaker"] = diffDelete[isDark ? 2 : 0]
-  tokens["surface-diff-delete-strong"] = diffDelete[isDark ? 4 : 5]
-  tokens["surface-diff-delete-stronger"] = diffDelete[isDark ? 10 : 8]
-
-  tokens["input-base"] = isDark ? neutral[1] : neutral[0]
-  tokens["input-hover"] = isDark ? neutral[2] : neutral[1]
-  tokens["input-active"] = isDark ? interactive[6] : interactive[0]
-  tokens["input-selected"] = isDark ? interactive[7] : interactive[3]
-  tokens["input-focus"] = isDark ? interactive[6] : interactive[0]
-  tokens["input-disabled"] = neutral[3]
+  buildBackgroundTokens(ctx, tokens)
+  buildSurfaceTokens(ctx, tokens)
+  buildInputTokens(ctx, tokens)
 
   tokens["text-base"] = colors.compact ? (body as HexColor) : neutral[10]
   tokens["text-weak"] = colors.compact ? shift(body as HexColor, { l: isDark ? -0.11 : 0.11, c: 0.9 }) : neutral[8]
@@ -669,6 +594,108 @@ function semanticShades(scale: HexColor[], isDark: boolean): { base: HexColor; w
     weak: scale[isDark ? 5 : 3],
     strong: scale[10],
   }
+}
+
+function buildBackgroundTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, isDark } = ctx
+  tokens["background-base"] = neutral[0]
+  tokens["background-weak"] = neutral[2]
+  tokens["background-strong"] = neutral[0]
+  tokens["background-stronger"] = isDark ? neutral[1] : "#fcfcfc"
+}
+
+function buildSurfaceTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  buildSurfaceBaseTokens(ctx, tokens)
+  buildSurfaceStatusTokens(ctx, tokens)
+  buildSurfaceDiffTokens(ctx, tokens)
+}
+
+function buildSurfaceBaseTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, neutralAlpha, interactive, isDark } = ctx
+
+  tokens["surface-base"] = neutralAlpha[1]
+  tokens["base"] = neutralAlpha[1]
+  tokens["surface-base-hover"] = neutralAlpha[2]
+  tokens["surface-base-active"] = neutralAlpha[2]
+  tokens["surface-base-interactive-active"] = withAlpha(interactive[2], 0.3) as ColorValue
+  tokens["base2"] = neutralAlpha[1]
+  tokens["base3"] = neutralAlpha[1]
+  tokens["surface-inset-base"] = neutralAlpha[1]
+  tokens["surface-inset-base-hover"] = neutralAlpha[2]
+  tokens["surface-inset-strong"] = isDark
+    ? (withAlpha(neutral[0], 0.5) as ColorValue)
+    : (withAlpha(neutral[3], 0.09) as ColorValue)
+  tokens["surface-inset-strong-hover"] = tokens["surface-inset-strong"]
+  tokens["surface-raised-base"] = neutralAlpha[0]
+  tokens["surface-float-base"] = isDark ? neutral[1] : neutral[11]
+  tokens["surface-float-base-hover"] = isDark ? neutral[2] : neutral[10]
+  tokens["surface-raised-base-hover"] = neutralAlpha[1]
+  tokens["surface-raised-base-active"] = neutralAlpha[2]
+  tokens["surface-raised-strong"] = isDark ? neutralAlpha[3] : neutral[0]
+  tokens["surface-raised-strong-hover"] = isDark ? neutralAlpha[5] : "#ffffff"
+  tokens["surface-raised-stronger"] = isDark ? neutralAlpha[5] : "#ffffff"
+  tokens["surface-raised-stronger-hover"] = isDark ? neutralAlpha[6] : "#ffffff"
+  tokens["surface-weak"] = neutralAlpha[2]
+  tokens["surface-weaker"] = neutralAlpha[3]
+  tokens["surface-strong"] = isDark ? neutralAlpha[6] : "#ffffff"
+  tokens["surface-raised-stronger-non-alpha"] = isDark ? neutral[2] : "#ffffff"
+}
+
+function buildSurfaceStatusTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { brandb, brandh, interb, interh, interw, succb, succw, succs, warnb, warnw, warns, critb, critw, crits, infob, infow, infos } = ctx
+
+  tokens["surface-brand-base"] = brandb
+  tokens["surface-brand-hover"] = brandh
+
+  tokens["surface-interactive-base"] = interb
+  tokens["surface-interactive-hover"] = interh
+  tokens["surface-interactive-weak"] = interw
+  tokens["surface-interactive-weak-hover"] = interb
+
+  tokens["surface-success-base"] = succb
+  tokens["surface-success-weak"] = succw
+  tokens["surface-success-strong"] = succs
+  tokens["surface-warning-base"] = warnb
+  tokens["surface-warning-weak"] = warnw
+  tokens["surface-warning-strong"] = warns
+  tokens["surface-critical-base"] = critb
+  tokens["surface-critical-weak"] = critw
+  tokens["surface-critical-strong"] = crits
+  tokens["surface-info-base"] = infob
+  tokens["surface-info-weak"] = infow
+  tokens["surface-info-strong"] = infos
+}
+
+function buildSurfaceDiffTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, neutralAlpha, isDark, diffHiddenSurface, diffAdd, diffDelete } = ctx
+
+  tokens["surface-diff-unchanged-base"] = isDark ? neutral[0] : "#ffffff00"
+  tokens["surface-diff-skip-base"] = isDark ? neutralAlpha[0] : neutral[1]
+  tokens["surface-diff-hidden-base"] = diffHiddenSurface.base
+  tokens["surface-diff-hidden-weak"] = diffHiddenSurface.weak
+  tokens["surface-diff-hidden-weaker"] = diffHiddenSurface.weaker
+  tokens["surface-diff-hidden-strong"] = diffHiddenSurface.strong
+  tokens["surface-diff-hidden-stronger"] = diffHiddenSurface.stronger
+  tokens["surface-diff-add-base"] = diffAdd[2]
+  tokens["surface-diff-add-weak"] = diffAdd[isDark ? 3 : 1]
+  tokens["surface-diff-add-weaker"] = diffAdd[isDark ? 2 : 0]
+  tokens["surface-diff-add-strong"] = diffAdd[4]
+  tokens["surface-diff-add-stronger"] = diffAdd[isDark ? 10 : 8]
+  tokens["surface-diff-delete-base"] = diffDelete[2]
+  tokens["surface-diff-delete-weak"] = diffDelete[isDark ? 3 : 1]
+  tokens["surface-diff-delete-weaker"] = diffDelete[isDark ? 2 : 0]
+  tokens["surface-diff-delete-strong"] = diffDelete[isDark ? 4 : 5]
+  tokens["surface-diff-delete-stronger"] = diffDelete[isDark ? 10 : 8]
+}
+
+function buildInputTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, interactive, isDark } = ctx
+  tokens["input-base"] = isDark ? neutral[1] : neutral[0]
+  tokens["input-hover"] = isDark ? neutral[2] : neutral[1]
+  tokens["input-active"] = isDark ? interactive[6] : interactive[0]
+  tokens["input-selected"] = isDark ? interactive[7] : interactive[3]
+  tokens["input-focus"] = isDark ? interactive[6] : interactive[0]
+  tokens["input-disabled"] = neutral[3]
 }
 
 export function resolveTheme(theme: DesktopTheme): { light: ResolvedTheme; dark: ResolvedTheme } {
