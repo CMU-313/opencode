@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { buildScales, computeCompactBody, computeToneContext, getColors, surface, type ThemeColors, type ToneContext } from "./resolve"
-import type { ThemeVariant } from "./types"
+import {
+  buildIconTokens,
+  buildScales,
+  buildTextTokens,
+  buildTokenContext,
+  computeCompactBody,
+  computeToneContext,
+  getColors,
+  surface,
+  type ThemeColors,
+  type ToneContext,
+} from "./resolve"
+import type { ResolvedTheme, ThemeVariant } from "./types"
 
 describe("getColors", () => {
   test("resolves a palette variant into compact ThemeColors with fallbacks", () => {
@@ -182,6 +193,230 @@ describe("surface", () => {
       weaker: "#e5e6fc",
       strong: "#d9dafb",
       stronger: "#c6c7f9",
+    })
+  })
+})
+
+describe("buildTextTokens", () => {
+  test("populates text tokens for dark mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, true)
+    const tokens: ResolvedTheme = {}
+    buildTextTokens(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "text-base": "#636363",
+      "text-weak": "#454545",
+      "text-weaker": "#2e2e2e",
+      "text-strong": "#efefef",
+      "text-invert-base": "#272727",
+      "text-invert-weak": "#3a3a3a",
+      "text-invert-weaker": "#424242",
+      "text-invert-strong": "#212121",
+      "text-interactive-base": "#c9d1fc",
+      "text-on-brand-base": "#ffffff",
+      "text-on-interactive-base": "#ffffff",
+      "text-on-interactive-weak": "#ffffff",
+      "text-on-success-base": "#ffffff",
+      "text-on-critical-base": "#ffffff",
+      "text-on-critical-weak": "#ffffff",
+      "text-on-critical-strong": "#000000",
+      "text-on-warning-base": "#ffffff",
+      "text-on-info-base": "#ffffff",
+      "text-on-info-weak": "#ffffff",
+      "text-on-info-strong": "#000000",
+      "text-on-warning-weak": "#ffffff",
+      "text-on-warning-strong": "#000000",
+      "text-on-success-weak": "#ffffff",
+      "text-on-success-strong": "#000000",
+      "text-on-brand-weak": "#ffffff",
+      "text-on-brand-weaker": "#ffffff",
+      "text-on-brand-strong": "#000000",
+      "text-diff-add-base": "#41fa7c",
+      "text-diff-add-strong": "#166c32",
+      "text-diff-delete-base": "#ee2527",
+      "text-diff-delete-strong": "#fafafa",
+    })
+  })
+
+  test("populates text tokens for light mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, false)
+    const tokens: ResolvedTheme = {}
+    buildTextTokens(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "text-base": "#1c1c1c",
+      "text-weak": "#373737",
+      "text-weaker": "#515151",
+      "text-strong": "#0c0c0c",
+      "text-invert-base": "#e7e7e7",
+      "text-invert-weak": "#e2e2e2",
+      "text-invert-weaker": "#dcdcdc",
+      "text-invert-strong": "#ececec",
+      "text-interactive-base": "#5953f3",
+      "text-on-brand-base": "#000000",
+      "text-on-interactive-base": "#000000",
+      "text-on-interactive-weak": "#000000",
+      "text-on-success-base": "#000000",
+      "text-on-critical-base": "#000000",
+      "text-on-critical-weak": "#000000",
+      "text-on-critical-strong": "#ffffff",
+      "text-on-warning-base": "#000000",
+      "text-on-info-base": "#000000",
+      "text-on-info-weak": "#000000",
+      "text-on-info-strong": "#ffffff",
+      "text-on-warning-weak": "#000000",
+      "text-on-warning-strong": "#ffffff",
+      "text-on-success-weak": "#000000",
+      "text-on-success-strong": "#ffffff",
+      "text-on-brand-weak": "#000000",
+      "text-on-brand-weaker": "#000000",
+      "text-on-brand-strong": "#000000",
+      "text-diff-add-base": "#0f7433",
+      "text-diff-add-strong": "#033011",
+      "text-diff-delete-base": "#d10315",
+      "text-diff-delete-strong": "#4d0606",
+    })
+  })
+})
+
+describe("buildIconTokens", () => {
+  // icon-base/hover/active/selected/focus fall back to text-* tokens when compact && !isDark,
+  // so buildTextTokens is run first to seed those, matching how createToken orders builders.
+  test("populates icon tokens for dark mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, true)
+    const tokens: ResolvedTheme = {}
+    buildTextTokens(ctx, tokens)
+    buildIconTokens(ctx, tokens)
+
+    expect(tokens).toMatchObject({
+      "icon-base": "#313131",
+      "icon-hover": "#272727",
+      "icon-active": "#212121",
+      "icon-selected": "#212121",
+      "icon-disabled": "#474747",
+      "icon-focus": "#212121",
+      "icon-invert-base": "#525252",
+      "icon-weak-base": "#4a4a4a",
+      "icon-weak-hover": "#212121",
+      "icon-weak-active": "#3a3a3a",
+      "icon-weak-selected": "#3a3a3a",
+      "icon-weak-disabled": "#4f4f4f",
+      "icon-weak-focus": "#3a3a3a",
+      "icon-strong-base": "#212121",
+      "icon-strong-hover": "#f6f3f3",
+      "icon-strong-active": "#fcfcfc",
+      "icon-strong-selected": "#fdfcfc",
+      "icon-strong-disabled": "#424242",
+      "icon-strong-focus": "#fdfcfc",
+      "icon-brand-base": "#ffffff",
+      "icon-interactive-base": "#5443fb",
+      "icon-success-base": "#169847",
+      "icon-success-hover": "#22a851",
+      "icon-success-active": "#36fb7c",
+      "icon-warning-base": "#ba6113",
+      "icon-warning-hover": "#cc6d1e",
+      "icon-warning-active": "#fdc7a4",
+      "icon-critical-base": "#ca0620",
+      "icon-critical-hover": "#eb2c34",
+      "icon-critical-active": "#fec3bd",
+      "icon-info-base": "#067fb4",
+      "icon-info-hover": "#158dc6",
+      "icon-info-active": "#aadbfb",
+      "icon-agent-plan-base": "#067fb4",
+      "icon-agent-docs-base": "#ba6113",
+      "icon-agent-ask-base": "#3d70f8",
+      "icon-agent-build-base": "#c9d1fc",
+      "icon-on-brand-base": "#ffffff",
+      "icon-on-brand-hover": "#000000",
+      "icon-on-brand-selected": "#000000",
+      "icon-on-interactive-base": "#ffffff",
+      "icon-on-success-base": "#ffffff",
+      "icon-on-success-hover": "#000000",
+      "icon-on-success-selected": "#000000",
+      "icon-on-warning-base": "#ffffff",
+      "icon-on-warning-hover": "#000000",
+      "icon-on-warning-selected": "#000000",
+      "icon-on-critical-base": "#ffffff",
+      "icon-on-critical-hover": "#000000",
+      "icon-on-critical-selected": "#000000",
+      "icon-on-info-base": "#ffffff",
+      "icon-on-info-hover": "#000000",
+      "icon-on-info-selected": "#000000",
+      "icon-diff-add-base": "#41fa7c",
+      "icon-diff-add-hover": "#179d47",
+      "icon-diff-add-active": "#41fa7c",
+      "icon-diff-delete-base": "#ee2527",
+      "icon-diff-delete-hover": "#fbc4bd",
+      "icon-diff-modified-base": "#ffba92",
+    })
+  })
+
+  test("populates icon tokens for light mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, false)
+    const tokens: ResolvedTheme = {}
+    buildTextTokens(ctx, tokens)
+    buildIconTokens(ctx, tokens)
+
+    expect(tokens).toMatchObject({
+      "icon-base": "#373737",
+      "icon-hover": "#1c1c1c",
+      "icon-active": "#0c0c0c",
+      "icon-selected": "#0c0c0c",
+      "icon-disabled": "#a9a9a9",
+      "icon-focus": "#0c0c0c",
+      "icon-invert-base": "#ffffff",
+      "icon-weak-base": "#bdbdbd",
+      "icon-weak-hover": "#a9a9a9",
+      "icon-weak-active": "#8c8c8c",
+      "icon-weak-selected": "#686868",
+      "icon-weak-disabled": "#cbcbcb",
+      "icon-weak-focus": "#8c8c8c",
+      "icon-strong-base": "#262626",
+      "icon-strong-hover": "#151313",
+      "icon-strong-active": "#020202",
+      "icon-strong-selected": "#020202",
+      "icon-strong-disabled": "#a9a9a9",
+      "icon-strong-focus": "#020202",
+      "icon-brand-base": "#262626",
+      "icon-interactive-base": "#6261fc",
+      "icon-success-base": "#39e573",
+      "icon-success-hover": "#2ab75a",
+      "icon-success-active": "#077433",
+      "icon-warning-base": "#fcab82",
+      "icon-warning-hover": "#e16606",
+      "icon-warning-active": "#9a4301",
+      "icon-critical-base": "#ed172b",
+      "icon-critical-hover": "#ed172b",
+      "icon-critical-active": "#b7001a",
+      "icon-info-base": "#7ccbfd",
+      "icon-info-hover": "#40b6f7",
+      "icon-info-active": "#0e6893",
+      "icon-agent-plan-base": "#15a5e8",
+      "icon-agent-docs-base": "#eb7328",
+      "icon-agent-ask-base": "#759fff",
+      "icon-agent-build-base": "#6261fc",
+      "icon-on-brand-base": "#000000",
+      "icon-on-brand-hover": "#000000",
+      "icon-on-brand-selected": "#000000",
+      "icon-on-interactive-base": "#000000",
+      "icon-on-success-base": "#000000",
+      "icon-on-success-hover": "#ffffff",
+      "icon-on-success-selected": "#ffffff",
+      "icon-on-warning-base": "#000000",
+      "icon-on-warning-hover": "#ffffff",
+      "icon-on-warning-selected": "#ffffff",
+      "icon-on-critical-base": "#000000",
+      "icon-on-critical-hover": "#ffffff",
+      "icon-on-critical-selected": "#ffffff",
+      "icon-on-info-base": "#000000",
+      "icon-on-info-hover": "#ffffff",
+      "icon-on-info-selected": "#ffffff",
+      "icon-diff-add-base": "#0f7433",
+      "icon-diff-add-hover": "#033011",
+      "icon-diff-add-active": "#033011",
+      "icon-diff-delete-base": "#d10315",
+      "icon-diff-delete-hover": "#b21a1b",
+      "icon-diff-modified-base": "#FF8C00",
     })
   })
 })
