@@ -10,7 +10,7 @@ import type { Message } from "opencode/session/message"
 import type { Session } from "opencode/session/index"
 import { Part, ProviderIcon } from "./share/part"
 
-type MessageWithParts = MessageV2.Info & { parts: MessageV2.Part[] }
+export type MessageWithParts = MessageV2.Info & { parts: MessageV2.Part[] }
 
 type Status = "disconnected" | "connecting" | "connected" | "error" | "reconnecting"
 
@@ -38,24 +38,178 @@ function getStatusText(status: [Status, string?], messages: Record<string, strin
   }
 }
 
+export function isVisiblePart(part: MessageV2.Part, index: number): boolean {
+  if (part.type === "step-start" && index > 0) return false
+  if (part.type === "snapshot") return false
+  if (part.type === "patch") return false
+  if (part.type === "step-finish") return false
+  if (part.type === "text" && part.synthetic === true) return false
+  if (part.type === "text" && !part.text) return false
+  if (part.type === "tool" && (part.state.status === "pending" || part.state.status === "running")) return false
+  return true
+}
+
+export function summarizeSession(info: Session.Info | undefined, msgs: MessageWithParts[]) {
+  const result = {
+    rootDir: undefined as string | undefined,
+    created: undefined as number | undefined,
+    completed: undefined as number | undefined,
+    messages: [] as MessageWithParts[],
+    models: {} as Record<string, string[]>,
+    cost: 0,
+    tokens: {
+      input: 0,
+      output: 0,
+      reasoning: 0,
+    },
+  }
+
+  if (!info) return result
+
+  result.created = info.time.created
+
+  for (const msg of msgs) {
+    result.messages.push(msg)
+
+    if (msg.role === "assistant") {
+      result.cost += msg.cost
+      result.tokens.input += msg.tokens.input
+      result.tokens.output += msg.tokens.output
+      result.tokens.reasoning += msg.tokens.reasoning
+
+      result.models[`${msg.providerID} ${msg.modelID}`] = [msg.providerID, msg.modelID]
+
+      if (msg.path.root) {
+        result.rootDir = msg.path.root
+      }
+
+      if (msg.time.completed) {
+        result.completed = msg.time.completed
+      }
+    }
+  }
+  return result
+}
+
+// Only show when scrolling down, scrolled enough, and not near bottom.
+export function shouldShowScrollButton(params: { currentScrollY: number; lastScrollY: number; isNearBottom: boolean }) {
+  const isScrollingDown = params.currentScrollY > params.lastScrollY
+  const scrolled = params.currentScrollY > 200 // Show after scrolling 200px
+  return isScrollingDown && scrolled && !params.isNearBottom
+}
+
+// Runs `dispose(value)` only if `value` is set - shared by every "clear this
+// timeout/observer/element if it exists" cleanup spot in useScrollButton.
+export function disposeIfSet<T>(value: T | undefined, dispose: (value: T) => void) {
+  if (value) dispose(value)
+}
+
+// Encapsulates the floating "scroll to bottom" button: visibility on scroll-down,
+// hover-to-persist, auto-hide timers, and the near-bottom IntersectionObserver.
+function useScrollButton() {
+  let lastScrollY = 0
+  let scrollTimeout: number | undefined
+  let scrollSentinel: HTMLElement | undefined
+  let scrollObserver: IntersectionObserver | undefined
+
+  const [showScrollButton, setShowScrollButton] = createSignal(false)
+  const [isButtonHovered, setIsButtonHovered] = createSignal(false)
+  const [isNearBottom, setIsNearBottom] = createSignal(false)
+
+  function scheduleHide(ms: number) {
+    return window.setTimeout(() => {
+      if (!isButtonHovered()) setShowScrollButton(false)
+    }, ms)
+  }
+
+  function checkScrollNeed() {
+    const currentScrollY = window.scrollY
+    const shouldShow = shouldShowScrollButton({ currentScrollY, lastScrollY, isNearBottom: isNearBottom() })
+
+    // Update last scroll position
+    lastScrollY = currentScrollY
+
+    if (shouldShow) {
+      setShowScrollButton(true)
+      disposeIfSet(scrollTimeout, clearTimeout)
+      // Hide button after 3 seconds of no scrolling (unless hovered)
+      scrollTimeout = scheduleHide(1500)
+    } else if (!isButtonHovered()) {
+      // Only hide if not hovered (to prevent disappearing while user is about to click)
+      setShowScrollButton(false)
+      disposeIfSet(scrollTimeout, clearTimeout)
+    }
+  }
+
+  onMount(() => {
+    lastScrollY = window.scrollY // Initialize scroll position
+
+    // Create sentinel element
+    const sentinel = document.createElement("div")
+    sentinel.style.height = "1px"
+    sentinel.style.position = "absolute"
+    sentinel.style.bottom = "100px"
+    sentinel.style.width = "100%"
+    sentinel.style.pointerEvents = "none"
+    document.body.appendChild(sentinel)
+
+    // Create intersection observer
+    const observer = new IntersectionObserver((entries) => {
+      setIsNearBottom(entries[0].isIntersecting)
+    })
+    observer.observe(sentinel)
+
+    // Store references for cleanup
+    scrollSentinel = sentinel
+    scrollObserver = observer
+
+    checkScrollNeed()
+    window.addEventListener("scroll", checkScrollNeed)
+    window.addEventListener("resize", checkScrollNeed)
+  })
+
+  onCleanup(() => {
+    window.removeEventListener("scroll", checkScrollNeed)
+    window.removeEventListener("resize", checkScrollNeed)
+
+    // Clean up observer and sentinel
+    disposeIfSet(scrollObserver, (observer) => observer.disconnect())
+    disposeIfSet(scrollSentinel, (sentinel) => document.body.removeChild(sentinel))
+    disposeIfSet(scrollTimeout, clearTimeout)
+  })
+
+  return {
+    get visible() {
+      return showScrollButton()
+    },
+    scrollToBottom() {
+      document.body.scrollIntoView({ behavior: "smooth", block: "end" })
+    },
+    onMouseEnter() {
+      setIsButtonHovered(true)
+      disposeIfSet(scrollTimeout, clearTimeout)
+    },
+    onMouseLeave() {
+      setIsButtonHovered(false)
+      if (showScrollButton()) {
+        scrollTimeout = scheduleHide(3000)
+      }
+    },
+  }
+}
+
 export default function Share(props: {
   id: string
   api: string
   info: Session.Info
   messages: { locale: string } & Record<string, string>
 }) {
-  let lastScrollY = 0
   let hasScrolledToAnchor = false
-  let scrollTimeout: number | undefined
-  let scrollSentinel: HTMLElement | undefined
-  let scrollObserver: IntersectionObserver | undefined
 
   const params = new URLSearchParams(window.location.search)
   const debug = params.get("debug") === "true"
 
-  const [showScrollButton, setShowScrollButton] = createSignal(false)
-  const [isButtonHovered, setIsButtonHovered] = createSignal(false)
-  const [isNearBottom, setIsNearBottom] = createSignal(false)
+  const scrollButton = useScrollButton()
 
   const [store, setStore] = createStore<{
     info?: Session.Info
@@ -176,126 +330,7 @@ export default function Share(props: {
     })
   })
 
-  function checkScrollNeed() {
-    const currentScrollY = window.scrollY
-    const isScrollingDown = currentScrollY > lastScrollY
-    const scrolled = currentScrollY > 200 // Show after scrolling 200px
-
-    // Only show when scrolling down, scrolled enough, and not near bottom
-    const shouldShow = isScrollingDown && scrolled && !isNearBottom()
-
-    // Update last scroll position
-    lastScrollY = currentScrollY
-
-    if (shouldShow) {
-      setShowScrollButton(true)
-      // Clear existing timeout
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
-      // Hide button after 3 seconds of no scrolling (unless hovered)
-      scrollTimeout = window.setTimeout(() => {
-        if (!isButtonHovered()) {
-          setShowScrollButton(false)
-        }
-      }, 1500)
-    } else if (!isButtonHovered()) {
-      // Only hide if not hovered (to prevent disappearing while user is about to click)
-      setShowScrollButton(false)
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
-    }
-  }
-
-  onMount(() => {
-    lastScrollY = window.scrollY // Initialize scroll position
-
-    // Create sentinel element
-    const sentinel = document.createElement("div")
-    sentinel.style.height = "1px"
-    sentinel.style.position = "absolute"
-    sentinel.style.bottom = "100px"
-    sentinel.style.width = "100%"
-    sentinel.style.pointerEvents = "none"
-    document.body.appendChild(sentinel)
-
-    // Create intersection observer
-    const observer = new IntersectionObserver((entries) => {
-      setIsNearBottom(entries[0].isIntersecting)
-    })
-    observer.observe(sentinel)
-
-    // Store references for cleanup
-    scrollSentinel = sentinel
-    scrollObserver = observer
-
-    checkScrollNeed()
-    window.addEventListener("scroll", checkScrollNeed)
-    window.addEventListener("resize", checkScrollNeed)
-  })
-
-  onCleanup(() => {
-    window.removeEventListener("scroll", checkScrollNeed)
-    window.removeEventListener("resize", checkScrollNeed)
-
-    // Clean up observer and sentinel
-    if (scrollObserver) {
-      scrollObserver.disconnect()
-    }
-    if (scrollSentinel) {
-      document.body.removeChild(scrollSentinel)
-    }
-
-    if (scrollTimeout) {
-      clearTimeout(scrollTimeout)
-    }
-  })
-
-  const data = createMemo(() => {
-    const result = {
-      rootDir: undefined as string | undefined,
-      created: undefined as number | undefined,
-      completed: undefined as number | undefined,
-      messages: [] as MessageWithParts[],
-      models: {} as Record<string, string[]>,
-      cost: 0,
-      tokens: {
-        input: 0,
-        output: 0,
-        reasoning: 0,
-      },
-    }
-
-    if (!store.info) return result
-
-    result.created = store.info.time.created
-
-    const msgs = messages()
-    for (let i = 0; i < msgs.length; i++) {
-      const msg = msgs[i]
-
-      result.messages.push(msg)
-
-      if (msg.role === "assistant") {
-        result.cost += msg.cost
-        result.tokens.input += msg.tokens.input
-        result.tokens.output += msg.tokens.output
-        result.tokens.reasoning += msg.tokens.reasoning
-
-        result.models[`${msg.providerID} ${msg.modelID}`] = [msg.providerID, msg.modelID]
-
-        if (msg.path.root) {
-          result.rootDir = msg.path.root
-        }
-
-        if (msg.time.completed) {
-          result.completed = msg.time.completed
-        }
-      }
-    }
-    return result
-  })
+  const data = createMemo(() => summarizeSession(store.info, messages()))
 
   return (
     <Show when={store.info}>
@@ -350,19 +385,7 @@ export default function Share(props: {
                 <SuspenseList revealOrder="forwards">
                   <For each={data().messages}>
                     {(msg, msgIndex) => {
-                      const filteredParts = createMemo(() =>
-                        msg.parts.filter((x, index) => {
-                          if (x.type === "step-start" && index > 0) return false
-                          if (x.type === "snapshot") return false
-                          if (x.type === "patch") return false
-                          if (x.type === "step-finish") return false
-                          if (x.type === "text" && x.synthetic === true) return false
-                          if (x.type === "text" && !x.text) return false
-                          if (x.type === "tool" && (x.state.status === "pending" || x.state.status === "running"))
-                            return false
-                          return true
-                        }),
-                      )
+                      const filteredParts = createMemo(() => msg.parts.filter(isVisiblePart))
 
                       return (
                         <Suspense>
@@ -467,27 +490,13 @@ export default function Share(props: {
             </div>
           </Show>
 
-          <Show when={showScrollButton()}>
+          <Show when={scrollButton.visible}>
             <button
               type="button"
               class={styles["scroll-button"]}
-              onClick={() => document.body.scrollIntoView({ behavior: "smooth", block: "end" })}
-              onMouseEnter={() => {
-                setIsButtonHovered(true)
-                if (scrollTimeout) {
-                  clearTimeout(scrollTimeout)
-                }
-              }}
-              onMouseLeave={() => {
-                setIsButtonHovered(false)
-                if (showScrollButton()) {
-                  scrollTimeout = window.setTimeout(() => {
-                    if (!isButtonHovered()) {
-                      setShowScrollButton(false)
-                    }
-                  }, 3000)
-                }
-              }}
+              onClick={scrollButton.scrollToBottom}
+              onMouseEnter={scrollButton.onMouseEnter}
+              onMouseLeave={scrollButton.onMouseLeave}
               title={props.messages.scroll_to_bottom}
               aria-label={props.messages.scroll_to_bottom}
             >
