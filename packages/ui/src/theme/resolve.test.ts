@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import {
+  buildAvatarTokens,
   buildIconTokens,
   buildScales,
   buildTextTokens,
   buildTokenContext,
   computeCompactBody,
   computeToneContext,
+  createToken,
   getColors,
   surface,
   type ThemeColors,
@@ -417,6 +419,227 @@ describe("buildIconTokens", () => {
       "icon-diff-delete-base": "#d10315",
       "icon-diff-delete-hover": "#b21a1b",
       "icon-diff-modified-base": "#FF8C00",
+    })
+  })
+})
+
+describe("createToken", () => {
+  // Spans background/surface/input/text/button/border/icon/avatar tokens (>25% of the ~214 keys produced).
+  test("assembles the full dark-mode token set", () => {
+    const ctx = buildTokenContext(sampleColors, {}, true)
+    const tokens = createToken(ctx)
+
+    expect(Object.keys(tokens).length).toBe(214)
+    expect(tokens).toMatchObject({
+      "background-base": "#525252",
+      "background-weak": "#505050",
+      "background-strong": "#525252",
+      "background-stronger": "#515151",
+      "surface-base": "#4f4f4f",
+      "surface-inset-strong": "rgba(82, 82, 82, 0.5)",
+      "surface-float-base": "#515151",
+      "surface-raised-strong": "#4b4b4b",
+      "surface-weak": "#4d4d4d",
+      "surface-strong": "#424242",
+      "surface-brand-base": "#0061e4",
+      "surface-interactive-base": "#340db4",
+      "surface-interactive-weak": "#240388",
+      "surface-success-base": "#065022",
+      "surface-success-strong": "#36fb7c",
+      "surface-warning-base": "#5c3906",
+      "surface-critical-base": "#7f0411",
+      "surface-info-base": "#094766",
+      "surface-diff-unchanged-base": "#525252",
+      "surface-diff-hidden-base": "#565761",
+      "surface-diff-add-base": "#001404",
+      "surface-diff-add-stronger": "#41fa7c",
+      "surface-diff-delete-base": "#240101",
+      "surface-diff-delete-stronger": "#fbc4bd",
+      "input-base": "#515151",
+      "input-active": "#340db4",
+      "input-selected": "#471cec",
+      "input-disabled": "#4f4f4f",
+      "text-base": "#636363",
+      "text-weak": "#454545",
+      "text-strong": "#efefef",
+      "text-invert-base": "#272727",
+      "text-invert-strong": "#212121",
+      "text-interactive-base": "#c9d1fc",
+      "text-on-brand-base": "#ffffff",
+      "text-on-success-base": "#ffffff",
+      "text-on-critical-strong": "#000000",
+      "text-on-warning-base": "#ffffff",
+      "text-diff-add-base": "#41fa7c",
+      "text-diff-add-strong": "#166c32",
+      "text-diff-delete-base": "#ee2527",
+      "text-diff-delete-strong": "#fafafa",
+      "button-primary-base": "#212121",
+      "button-secondary-base": "#505050",
+      "button-secondary-hover": "#4f4f4f",
+      "button-ghost-hover": "#4f4f4f",
+      "button-ghost-hover2": "#4d4d4d",
+      "border-base": "#454545",
+      "border-active": "#414141",
+      "border-selected": "rgba(84, 67, 251, 0.9)",
+      "border-weak-base": "#494949",
+      "border-strong-base": "#414141",
+      "border-success-base": "#065022",
+      "border-warning-selected": "#be7903",
+      "border-critical-hover": "#a9101d",
+      "border-info-base": "#094766",
+      "icon-base": "#313131",
+      "icon-hover": "#272727",
+      "icon-disabled": "#474747",
+      "icon-weak-base": "#4a4a4a",
+      "icon-strong-hover": "#f6f3f3",
+      "icon-success-base": "#169847",
+      "icon-warning-active": "#fdc7a4",
+      "icon-critical-hover": "#eb2c34",
+      "icon-info-base": "#067fb4",
+      "icon-agent-plan-base": "#067fb4",
+      "icon-on-brand-base": "#ffffff",
+      "icon-on-success-hover": "#000000",
+      "icon-on-critical-selected": "#000000",
+      "icon-diff-add-base": "#41fa7c",
+      "icon-diff-delete-hover": "#fbc4bd",
+      "icon-diff-modified-base": "#ffba92",
+      "avatar-background-pink": "#501b3f",
+      "avatar-background-mint": "#033a34",
+      "avatar-background-orange": "#5f2a06",
+      "avatar-text-pink": "#e34ba9",
+      "avatar-text-cyan": "#369eff",
+      "avatar-text-lime": "#c4f042",
+    })
+  })
+
+  test("assembles the full light-mode token set", () => {
+    const ctx = buildTokenContext(sampleColors, {}, false)
+    const tokens = createToken(ctx)
+
+    expect(Object.keys(tokens).length).toBe(214)
+    expect(tokens).toMatchObject({
+      "background-base": "#ececec",
+      "background-weak": "#e2e2e2",
+      "background-strong": "#ececec",
+      "background-stronger": "#fcfcfc",
+      "surface-base": "#e0e0e0",
+      "surface-inset-strong": "rgba(220, 220, 220, 0.09)",
+      "surface-float-base": "#262626",
+      "surface-raised-strong": "#ececec",
+      "surface-weak": "#d8d8d8",
+      "surface-strong": "#ffffff",
+      "surface-brand-base": "#3c82f5",
+      "surface-interactive-base": "#d8defe",
+      "surface-interactive-weak": "#e5e9fe",
+      "surface-success-base": "#8bfea5",
+      "surface-success-strong": "#077433",
+      "surface-warning-base": "#fdd9b1",
+      "surface-critical-base": "#fcd5d1",
+      "surface-info-base": "#c3e6fd",
+      "surface-diff-unchanged-base": "#ffffff00",
+      "surface-diff-hidden-base": "#e0e1e8",
+      "surface-diff-add-base": "#d9fede",
+      "surface-diff-add-stronger": "#1ba34b",
+      "surface-diff-delete-base": "#ffeeec",
+      "surface-diff-delete-stronger": "#db2928",
+      "input-base": "#ececec",
+      "input-active": "#fcfdff",
+      "input-selected": "#e5e9fe",
+      "input-disabled": "#dcdcdc",
+      "text-base": "#1c1c1c",
+      "text-weak": "#373737",
+      "text-strong": "#0c0c0c",
+      "text-invert-base": "#e7e7e7",
+      "text-invert-strong": "#ececec",
+      "text-interactive-base": "#5953f3",
+      "text-on-brand-base": "#000000",
+      "text-on-success-base": "#000000",
+      "text-on-critical-strong": "#ffffff",
+      "text-on-warning-base": "#000000",
+      "text-diff-add-base": "#0f7433",
+      "text-diff-add-strong": "#033011",
+      "text-diff-delete-base": "#d10315",
+      "text-diff-delete-strong": "#4d0606",
+      "button-primary-base": "#262626",
+      "button-secondary-base": "#ececec",
+      "button-secondary-hover": "#e7e7e7",
+      "button-ghost-hover": "#e0e0e0",
+      "button-ghost-hover2": "#d8d8d8",
+      "border-base": "#bababa",
+      "border-active": "#a2a2a2",
+      "border-selected": "rgba(98, 97, 252, 0.99)",
+      "border-weak-base": "#d3d3d3",
+      "border-strong-base": "#a2a2a2",
+      "border-success-base": "#39e573",
+      "border-warning-selected": "#f49e14",
+      "border-critical-hover": "#ff7e76",
+      "border-info-base": "#7ccbfd",
+      "icon-base": "#373737",
+      "icon-hover": "#1c1c1c",
+      "icon-disabled": "#a9a9a9",
+      "icon-weak-base": "#bdbdbd",
+      "icon-strong-hover": "#151313",
+      "icon-success-base": "#39e573",
+      "icon-warning-active": "#9a4301",
+      "icon-critical-hover": "#ed172b",
+      "icon-info-base": "#7ccbfd",
+      "icon-agent-plan-base": "#15a5e8",
+      "icon-on-brand-base": "#000000",
+      "icon-on-success-hover": "#ffffff",
+      "icon-on-critical-selected": "#ffffff",
+      "icon-diff-add-base": "#0f7433",
+      "icon-diff-delete-hover": "#b21a1b",
+      "icon-diff-modified-base": "#FF8C00",
+      "avatar-background-pink": "#feeef8",
+      "avatar-background-mint": "#e1fbf4",
+      "avatar-background-orange": "#fff1e7",
+      "avatar-text-pink": "#cd1d8d",
+      "avatar-text-cyan": "#0894b3",
+      "avatar-text-lime": "#5d770d",
+    })
+  })
+})
+
+describe("buildAvatarTokens", () => {
+  test("populates avatar tokens for dark mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, true)
+    const tokens: ResolvedTheme = {}
+    buildAvatarTokens(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "avatar-background-pink": "#501b3f",
+      "avatar-background-mint": "#033a34",
+      "avatar-background-orange": "#5f2a06",
+      "avatar-background-purple": "#432155",
+      "avatar-background-cyan": "#0f3058",
+      "avatar-background-lime": "#2b3711",
+      "avatar-text-pink": "#e34ba9",
+      "avatar-text-mint": "#95f3d9",
+      "avatar-text-orange": "#ff802b",
+      "avatar-text-purple": "#9d5bd2",
+      "avatar-text-cyan": "#369eff",
+      "avatar-text-lime": "#c4f042",
+    })
+  })
+
+  test("populates avatar tokens for light mode", () => {
+    const ctx = buildTokenContext(sampleColors, {}, false)
+    const tokens: ResolvedTheme = {}
+    buildAvatarTokens(ctx, tokens)
+
+    expect(tokens).toEqual({
+      "avatar-background-pink": "#feeef8",
+      "avatar-background-mint": "#e1fbf4",
+      "avatar-background-orange": "#fff1e7",
+      "avatar-background-purple": "#f9f1fe",
+      "avatar-background-cyan": "#e7f9fb",
+      "avatar-background-lime": "#eefadc",
+      "avatar-text-pink": "#cd1d8d",
+      "avatar-text-mint": "#147d6f",
+      "avatar-text-orange": "#ed5f00",
+      "avatar-text-purple": "#8445bc",
+      "avatar-text-cyan": "#0894b3",
+      "avatar-text-lime": "#5d770d",
     })
   })
 })
