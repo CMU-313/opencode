@@ -89,68 +89,9 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   const colors = getColors(variant)
   const { overrides = {} } = variant
   const ctx = buildTokenContext(colors, overrides, isDark)
-  const { tone, neutral, primary, accent, success, warning, error, info, interactive, amber, diffAdd, diffDelete, neutralAlpha } = ctx
-  const { ink, overlay, background } = tone
+  const { success, warning, error, info, interactive, amber, primary, accent, diffAdd, diffDelete } = ctx
 
-  const alphaTone = (color: HexColor, alpha: number) =>
-    overlay ? (withAlpha(color, alpha) as ColorValue) : blend(color, background, alpha)
-  const borderTone = (light: number, dark: number) =>
-    alphaTone(ink, isDark ? Math.min(1, dark + 0.024 + (colors.compact ? 0.08 : 0)) : Math.min(1, light + 0.024))
-
-  const tokens: ResolvedTheme = {}
-  buildBackgroundTokens(ctx, tokens)
-  buildSurfaceTokens(ctx, tokens)
-  buildInputTokens(ctx, tokens)
-  buildTextTokens(ctx, tokens)
-
-  tokens["button-primary-base"] = neutral[11]
-  tokens["button-secondary-base"] = isDark ? neutral[2] : neutral[0]
-  tokens["button-secondary-hover"] = isDark ? neutral[3] : neutral[1]
-  tokens["button-ghost-hover"] = neutralAlpha[1]
-  tokens["button-ghost-hover2"] = neutralAlpha[2]
-
-  tokens["border-base"] = colors.compact ? borderTone(0.22, 0.16) : neutralAlpha[6]
-  tokens["border-hover"] = colors.compact ? borderTone(0.28, 0.2) : neutralAlpha[7]
-  tokens["border-active"] = colors.compact ? borderTone(0.34, 0.24) : neutralAlpha[8]
-  tokens["border-selected"] = withAlpha(interactive[8], isDark ? 0.9 : 0.99) as ColorValue
-  tokens["border-disabled"] = colors.compact ? borderTone(0.18, 0.12) : neutralAlpha[7]
-  tokens["border-focus"] = colors.compact ? borderTone(0.34, 0.24) : neutralAlpha[8]
-  tokens["border-weak-base"] = colors.compact ? borderTone(0.1, 0.08) : neutralAlpha[isDark ? 5 : 4]
-  tokens["border-strong-base"] = colors.compact ? borderTone(0.34, 0.24) : neutralAlpha[isDark ? 7 : 6]
-  tokens["border-strong-hover"] = colors.compact ? borderTone(0.4, 0.28) : neutralAlpha[7]
-  tokens["border-strong-active"] = colors.compact ? borderTone(0.46, 0.32) : neutralAlpha[isDark ? 7 : 6]
-  tokens["border-strong-selected"] = withAlpha(interactive[5], 0.6) as ColorValue
-  tokens["border-strong-disabled"] = colors.compact ? borderTone(0.14, 0.1) : neutralAlpha[5]
-  tokens["border-strong-focus"] = colors.compact ? borderTone(0.46, 0.32) : neutralAlpha[isDark ? 7 : 6]
-  tokens["border-weak-hover"] = colors.compact ? borderTone(0.16, 0.12) : neutralAlpha[isDark ? 6 : 5]
-  tokens["border-weak-active"] = colors.compact ? borderTone(0.22, 0.16) : neutralAlpha[isDark ? 7 : 6]
-  tokens["border-weak-selected"] = withAlpha(interactive[4], isDark ? 0.6 : 0.5) as ColorValue
-  tokens["border-weak-disabled"] = colors.compact ? borderTone(0.08, 0.06) : neutralAlpha[5]
-  tokens["border-weak-focus"] = colors.compact ? borderTone(0.22, 0.16) : neutralAlpha[isDark ? 7 : 6]
-  tokens["border-weaker-base"] = colors.compact ? borderTone(0.06, 0.04) : neutralAlpha[2]
-
-  tokens["border-interactive-base"] = interactive[6]
-  tokens["border-interactive-hover"] = interactive[7]
-  tokens["border-interactive-active"] = interactive[8]
-  tokens["border-interactive-selected"] = interactive[8]
-  tokens["border-interactive-disabled"] = neutral[7]
-  tokens["border-interactive-focus"] = interactive[8]
-
-  tokens["border-success-base"] = success[isDark ? 6 : 6]
-  tokens["border-success-hover"] = success[isDark ? 7 : 7]
-  tokens["border-success-selected"] = success[8]
-  tokens["border-warning-base"] = warning[isDark ? 6 : 6]
-  tokens["border-warning-hover"] = warning[isDark ? 7 : 7]
-  tokens["border-warning-selected"] = warning[8]
-  tokens["border-critical-base"] = error[isDark ? 6 : 6]
-  tokens["border-critical-hover"] = error[isDark ? 7 : 7]
-  tokens["border-critical-selected"] = error[8]
-  tokens["border-info-base"] = info[isDark ? 6 : 6]
-  tokens["border-info-hover"] = info[isDark ? 7 : 7]
-  tokens["border-info-selected"] = info[8]
-  tokens["border-color"] = "#ffffff"
-
-  buildIconTokens(ctx, tokens)
+  const tokens: ResolvedTheme = createToken(ctx)
 
   if (colors.compact) {
     tokens["syntax-comment"] = "var(--text-weak)"
@@ -225,19 +166,6 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
     tokens["markdown-image-text"] = isDark ? "#56b6c2" : "#318795"
     tokens["markdown-code-block"] = isDark ? "#eeeeee" : "#1a1a1a"
   }
-
-  tokens["avatar-background-pink"] = isDark ? "#501b3f" : "#feeef8"
-  tokens["avatar-background-mint"] = isDark ? "#033a34" : "#e1fbf4"
-  tokens["avatar-background-orange"] = isDark ? "#5f2a06" : "#fff1e7"
-  tokens["avatar-background-purple"] = isDark ? "#432155" : "#f9f1fe"
-  tokens["avatar-background-cyan"] = isDark ? "#0f3058" : "#e7f9fb"
-  tokens["avatar-background-lime"] = isDark ? "#2b3711" : "#eefadc"
-  tokens["avatar-text-pink"] = isDark ? "#e34ba9" : "#cd1d8d"
-  tokens["avatar-text-mint"] = isDark ? "#95f3d9" : "#147d6f"
-  tokens["avatar-text-orange"] = isDark ? "#ff802b" : "#ed5f00"
-  tokens["avatar-text-purple"] = isDark ? "#9d5bd2" : "#8445bc"
-  tokens["avatar-text-cyan"] = isDark ? "#369eff" : "#0894b3"
-  tokens["avatar-text-lime"] = isDark ? "#c4f042" : "#5d770d"
 
   for (const [key, value] of Object.entries(overrides)) {
     tokens[key] = value
@@ -434,6 +362,19 @@ function semanticShades(scale: HexColor[], isDark: boolean): { base: HexColor; w
   }
 }
 
+export function createToken(ctx: TokenContext): ResolvedTheme {
+  const tokens: ResolvedTheme = {}
+  buildBackgroundTokens(ctx, tokens)
+  buildSurfaceTokens(ctx, tokens)
+  buildInputTokens(ctx, tokens)
+  buildTextTokens(ctx, tokens)
+  buildButtonTokens(ctx, tokens)
+  buildBorderTokens(ctx, tokens)
+  buildIconTokens(ctx, tokens)
+  buildAvatarTokens(ctx, tokens)
+  return tokens
+}
+
 function buildBackgroundTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
   const { neutral, isDark } = ctx
   tokens["background-base"] = neutral[0]
@@ -614,6 +555,73 @@ function buildTextDiffTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
   tokens["text-diff-delete-strong"] = diffDelete[11]
 }
 
+function buildButtonTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, neutralAlpha, isDark } = ctx
+  tokens["button-primary-base"] = neutral[11]
+  tokens["button-secondary-base"] = isDark ? neutral[2] : neutral[0]
+  tokens["button-secondary-hover"] = isDark ? neutral[3] : neutral[1]
+  tokens["button-ghost-hover"] = neutralAlpha[1]
+  tokens["button-ghost-hover2"] = neutralAlpha[2]
+}
+
+function buildBorderTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { neutral, interactive, success, warning, error, info, isDark } = ctx
+  const border = (light: number, dark: number, alphaLight: number, alphaDark = alphaLight) =>
+    resolveBorder(ctx, light, dark, alphaLight, alphaDark)
+
+  tokens["border-base"] = border(0.22, 0.16, 6)
+  tokens["border-hover"] = border(0.28, 0.2, 7)
+  tokens["border-active"] = border(0.34, 0.24, 8)
+  tokens["border-selected"] = withAlpha(interactive[8], isDark ? 0.9 : 0.99) as ColorValue
+  tokens["border-disabled"] = border(0.18, 0.12, 7)
+  tokens["border-focus"] = border(0.34, 0.24, 8)
+  tokens["border-weak-base"] = border(0.1, 0.08, 4, 5)
+  tokens["border-strong-base"] = border(0.34, 0.24, 6, 7)
+  tokens["border-strong-hover"] = border(0.4, 0.28, 7)
+  tokens["border-strong-active"] = border(0.46, 0.32, 6, 7)
+  tokens["border-strong-selected"] = withAlpha(interactive[5], 0.6) as ColorValue
+  tokens["border-strong-disabled"] = border(0.14, 0.1, 5)
+  tokens["border-strong-focus"] = border(0.46, 0.32, 6, 7)
+  tokens["border-weak-hover"] = border(0.16, 0.12, 5, 6)
+  tokens["border-weak-active"] = border(0.22, 0.16, 6, 7)
+  tokens["border-weak-selected"] = withAlpha(interactive[4], isDark ? 0.6 : 0.5) as ColorValue
+  tokens["border-weak-disabled"] = border(0.08, 0.06, 5)
+  tokens["border-weak-focus"] = border(0.22, 0.16, 6, 7)
+  tokens["border-weaker-base"] = border(0.06, 0.04, 2)
+
+  tokens["border-interactive-base"] = interactive[6]
+  tokens["border-interactive-hover"] = interactive[7]
+  tokens["border-interactive-active"] = interactive[8]
+  tokens["border-interactive-selected"] = interactive[8]
+  tokens["border-interactive-disabled"] = neutral[7]
+  tokens["border-interactive-focus"] = interactive[8]
+
+  borderStatusTokens(tokens, "success", success)
+  borderStatusTokens(tokens, "warning", warning)
+  borderStatusTokens(tokens, "critical", error)
+  borderStatusTokens(tokens, "info", info)
+  tokens["border-color"] = "#ffffff"
+}
+
+function resolveBorder(ctx: TokenContext, light: number, dark: number, alphaLight: number, alphaDark: number): ColorValue {
+  if (ctx.colors.compact) return borderTone(ctx.tone, light, dark)
+  return ctx.neutralAlpha[ctx.isDark ? alphaDark : alphaLight]
+}
+
+function borderTone(tone: ToneContext, light: number, dark: number): ColorValue {
+  return alphaTone(
+    tone,
+    tone.ink,
+    tone.isDark ? Math.min(1, dark + 0.024 + (tone.compact ? 0.08 : 0)) : Math.min(1, light + 0.024),
+  )
+}
+
+function borderStatusTokens(tokens: ResolvedTheme, prefix: string, scale: HexColor[]): void {
+  tokens[`border-${prefix}-base`] = scale[6]
+  tokens[`border-${prefix}-hover`] = scale[7]
+  tokens[`border-${prefix}-selected`] = scale[8]
+}
+
 export function buildIconTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
   buildIconBaseTokens(ctx, tokens)
   buildIconStatusTokens(ctx, tokens)
@@ -719,6 +727,22 @@ function content(isDark: boolean, seed: HexColor, scale: HexColor[]): ColorValue
   const base = hexToOklch(seed)
   const value = isDark ? (base.l > 0.84 ? shift(seed, { c: 1.18 }) : scale[10]) : scale[10]
   return shift(value, { l: isDark ? 0.034 : -0.024, c: isDark ? 1.3 : 1.18 })
+}
+
+export function buildAvatarTokens(ctx: TokenContext, tokens: ResolvedTheme): void {
+  const { isDark } = ctx
+  tokens["avatar-background-pink"] = isDark ? "#501b3f" : "#feeef8"
+  tokens["avatar-background-mint"] = isDark ? "#033a34" : "#e1fbf4"
+  tokens["avatar-background-orange"] = isDark ? "#5f2a06" : "#fff1e7"
+  tokens["avatar-background-purple"] = isDark ? "#432155" : "#f9f1fe"
+  tokens["avatar-background-cyan"] = isDark ? "#0f3058" : "#e7f9fb"
+  tokens["avatar-background-lime"] = isDark ? "#2b3711" : "#eefadc"
+  tokens["avatar-text-pink"] = isDark ? "#e34ba9" : "#cd1d8d"
+  tokens["avatar-text-mint"] = isDark ? "#95f3d9" : "#147d6f"
+  tokens["avatar-text-orange"] = isDark ? "#ff802b" : "#ed5f00"
+  tokens["avatar-text-purple"] = isDark ? "#9d5bd2" : "#8445bc"
+  tokens["avatar-text-cyan"] = isDark ? "#369eff" : "#0894b3"
+  tokens["avatar-text-lime"] = isDark ? "#c4f042" : "#5d770d"
 }
 
 export function resolveTheme(theme: DesktopTheme): { light: ResolvedTheme; dark: ResolvedTheme } {
