@@ -176,6 +176,47 @@ describe("pretty signature rendering", () => {
       expect(rendered).toContain("next?:")
     }
   })
+  test("treats a $ref to a missing $defs entry as unresolved", () => {
+    expect(
+      jsonSchemaToTypeScript({
+        $ref: "#/$defs/Ghost",
+        $defs: { Other: { type: "string" } },
+      }),
+    ).toBe("unknown")
+  })
+
+  test("detects cycles across mutually recursive $defs, not just self-reference", () => {
+    const mutual = {
+      $ref: "#/$defs/A",
+      $defs: {
+        A: { type: "object", properties: { b: { $ref: "#/$defs/B" } } },
+        B: { type: "object", properties: { a: { $ref: "#/$defs/A" } } },
+      },
+    } as const
+    expect(jsonSchemaToTypeScript(mutual)).toBe("{ b?: { a?: unknown } }")
+  })
+
+  test("detects a cycle reached only through anyOf/items, not properties", () => {
+    const cyclicThroughAnyOf = {
+      $ref: "#/$defs/Node",
+      $defs: {
+        Node: {
+          anyOf: [{ type: "string" }, { type: "array", items: { $ref: "#/$defs/Node" } }],
+        },
+      },
+    } as const
+    expect(jsonSchemaToTypeScript(cyclicThroughAnyOf)).toBe("string | Array<unknown>")
+  })
+
+  test("propagates an unresolved ref found through a resolved $ref target inside allOf", () => {
+    expect(
+      jsonSchemaToTypeScript({
+        type: "string",
+        allOf: [{ $ref: "#/$defs/A" }],
+        $defs: { A: { $ref: "#/$defs/A" } },
+      }),
+    ).toBe("unknown")
+  })
 
   test("intersects ref and union siblings instead of discarding them", () => {
     expect(
