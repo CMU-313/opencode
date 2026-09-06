@@ -64,6 +64,35 @@ describe("acp content conversion", () => {
     ])
   })
 
+  test("image block with data URI is preserved as a file part", () => {
+    expect(
+      contentBlockToParts({
+        type: "image",
+        data: "",
+        mimeType: "image/png",
+        uri: "data:image/png;base64,AAAA",
+      }),
+    ).toEqual([
+      {
+        type: "file",
+        url: "data:image/png;base64,AAAA",
+        filename: "image",
+        mime: "image/png",
+      },
+    ])
+  })
+
+  test("image block without data or http URI is ignored", () => {
+    expect(
+      contentBlockToParts({
+        type: "image",
+        data: "",
+        mimeType: "image/png",
+        uri: "file:///tmp/local.png",
+      }),
+    ).toEqual([])
+  })
+
   test("resource_link file URL becomes a file part with name and fallback mime", () => {
     expect(
       contentBlockToParts({
@@ -144,6 +173,29 @@ describe("acp content conversion", () => {
       expect(result[0].text.endsWith("\ncontext")).toBe(true)
       expect(result[0].text.includes("context.txt")).toBe(true)
     }
+  })
+
+  test("resource with text falls back when file URL cannot be converted", () => {
+    const result = contentBlockToParts({
+      type: "resource",
+      resource: {
+        uri: "file://hostname/tmp/context.txt",
+        text: "context",
+      },
+    })
+    expect(result).toEqual([{ type: "text", text: "[/tmp/context.txt]\ncontext" }])
+  })
+
+  test("resource with blob and no mimeType is ignored", () => {
+    expect(
+      contentBlockToParts({
+        type: "resource",
+        resource: {
+          uri: "file:///tmp/report.bin",
+          blob: "AA==",
+        },
+      }),
+    ).toEqual([])
   })
 
   test("resource with blob and mimeType becomes a data URL file part", () => {

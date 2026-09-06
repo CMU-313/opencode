@@ -69,6 +69,32 @@ jobs:
         working-directory: packages/client
         run: bun run check:generated
 
+  acp-content:
+    name: acp content
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Run ACP content tests
+        timeout-minutes: 5
+        working-directory: packages/opencode
+        run: bun test test/acp/content.test.ts
+
   e2e:
     name: e2e (smoke)
     runs-on: ubuntu-latest
