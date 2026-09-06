@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { validateCustomProvider } from "./dialog-custom-provider-form"
+import { validateCustomProvider, type FormState } from "./dialog-custom-provider-form"
 
 const t = (key: string) => key
 
@@ -80,7 +80,7 @@ describe("validateCustomProvider", () => {
 })
 
 
-const base = {
+const base: FormState = {
   providerID: "custom-provider",
   name: "Provider",
   baseURL: "https://api.example.com",
@@ -90,7 +90,7 @@ const base = {
   err: {},
 }
 
-const run = (form: Partial<typeof base>, extra: Partial<Parameters<typeof validateCustomProvider>[0]> = {}) =>
+const run = (form: Partial<FormState>, extra: Partial<Parameters<typeof validateCustomProvider>[0]> = {}) =>
   validateCustomProvider({
     form: { ...base, ...form },
     t,
