@@ -231,24 +231,46 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
 
     const loadThemes = () => Promise.all(themeIDs().map(load)).then(() => store.themes)
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEYS.THEME_ID && e.newValue) {
-        const next = normalize(e.newValue)
-        if (!next) return
-        if (next !== "oc-2" && !knownThemes().has(next) && !store.themes[next]) return
+    
+    const handleThemeChange = (rawValue: string) => {
+      const next = normalize(rawValue)
+      if (!next) return
+
+      if (next === "oc-2") {
         setStore("themeId", next)
-        if (next === "oc-2") {
-          clear()
-          return
-        }
-        void load(next).then((theme) => {
-          if (!theme || store.themeId !== next) return
-          cacheThemeVariants(theme, next)
-        })
+        clear()
+        return
       }
-      if (e.key === STORAGE_KEYS.COLOR_SCHEME && e.newValue) {
-        setStore("colorScheme", e.newValue as ColorScheme)
-        setStore("mode", e.newValue === "system" ? getSystemMode() : (e.newValue as "light" | "dark"))
+
+      const isKnown = knownThemes().has(next) || Boolean(store.themes[next])
+      if (!isKnown) return
+
+      setStore("themeId", next)
+
+      void load(next).then((theme) => {
+        if (theme && store.themeId === next) {
+          cacheThemeVariants(theme, next)
+        }
+      })
+    }
+
+    const handleColorSchemeChange = (rawValue: string) => {
+      const colorScheme = rawValue as ColorScheme
+      const mode = colorScheme === "system" ? getSystemMode() : (colorScheme as "light" | "dark")
+    
+      setStore("colorScheme", colorScheme)
+      setStore("mode", mode)
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (!e.newValue) return
+      switch (e.key) {
+        case STORAGE_KEYS.THEME_ID:
+          handleThemeChange(e.newValue)
+          break
+        case STORAGE_KEYS.COLOR_SCHEME:
+          handleColorSchemeChange(e.newValue)
+          break
       }
     }
 
