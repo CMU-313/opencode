@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "util"
+import { validRetry } from "./close-prs-retry-helper"
 
 const defaultRepo = process.env.GITHUB_REPOSITORY ?? ""
 const defaultAgeMonths = 1
@@ -315,8 +316,9 @@ async function githubRequest(path: string, init: RequestInit, attempt = 0): Prom
         : response.status >= 500
           ? Math.min(300_000, 10_000 * 2 ** attempt)
           : 0
+  
 
-  if ((response.status === 403 || response.status === 429 || response.status >= 500) && retryMs > 0 && attempt < 10) {
+  if (validRetry(response.status, retryMs, attempt)) {
     console.warn(`GitHub request failed; sleeping ${Math.ceil(retryMs / 1000)}s before retry ${attempt + 1}`)
     await sleep(retryMs)
     return githubRequest(path, init, attempt + 1)
