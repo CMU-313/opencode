@@ -40,6 +40,30 @@ type RenderContext = {
   readonly pretty: boolean
 }
 
+const resolveRef = (
+  schema: JsonSchema,
+  definitions: Readonly<Record<string, JsonSchema>>,
+  seen: ReadonlySet<string>,
+): { blocked: boolean; child?: JsonSchema; childSeen?: ReadonlySet<string> } => {
+  if (schema.$ref === undefined) return { blocked: false }
+
+  const segment = schema.$ref.match(/^#\/(?:\$defs|definitions)\/([^/]+)$/)?.[1]
+  const name = segment === undefined ? undefined : JsonPointer.unescapeToken(segment)
+  const target = name === undefined ? undefined : definitions[name]
+
+  if (name === undefined || target === undefined || seen.has(name)) return { blocked: true }
+  return { blocked: false, child: target, childSeen: new Set([...seen, name]) }
+}
+
+const collectChildSchemas = (schema: JsonSchema): JsonSchema[] => [
+  ...(schema.anyOf ?? []),
+  ...(schema.oneOf ?? []),
+  ...(schema.allOf ?? []),
+  ...Object.values(schema.properties ?? {}),
+  ...(schema.items === undefined ? [] : [schema.items]),
+  ...(typeof schema.additionalProperties === "object" ? [schema.additionalProperties] : []),
+]
+
 const hasUnresolvedRef = (
   schema: JsonSchema,
   definitions: Readonly<Record<string, JsonSchema>>,
@@ -48,20 +72,16 @@ const hasUnresolvedRef = (
 ): boolean => {
   if (visited.has(schema)) return false
   const nextVisited = new Set([...visited, schema])
-  if (schema.$ref !== undefined) {
-    const segment = schema.$ref.match(/^#\/(?:\$defs|definitions)\/([^/]+)$/)?.[1]
-    const name = segment === undefined ? undefined : JsonPointer.unescapeToken(segment)
-    if (name === undefined || definitions[name] === undefined || seen.has(name)) return true
-    if (hasUnresolvedRef(definitions[name], definitions, new Set([...seen, name]), nextVisited)) return true
+
+  const ref = resolveRef(schema, definitions, seen)
+  if (ref.blocked) return true
+  if (ref.child !== undefined && hasUnresolvedRef(ref.child, definitions, ref.childSeen, nextVisited)) {
+    return true
   }
-  return [
-    ...(schema.anyOf ?? []),
-    ...(schema.oneOf ?? []),
-    ...(schema.allOf ?? []),
-    ...Object.values(schema.properties ?? {}),
-    ...(schema.items === undefined ? [] : [schema.items]),
-    ...(typeof schema.additionalProperties === "object" ? [schema.additionalProperties] : []),
-  ].some((item) => hasUnresolvedRef(item, definitions, seen, nextVisited))
+
+  return collectChildSchemas(schema).some((item) =>
+    hasUnresolvedRef(item, definitions, seen, nextVisited),
+  )
 }
 
 /**
