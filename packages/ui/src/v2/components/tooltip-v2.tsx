@@ -13,6 +13,52 @@ export interface TooltipV2Props extends ComponentProps<typeof KobalteTooltip> {
   forceOpen?: boolean
 }
 
+export function isFocusWithin(root: Element | null | undefined, active: Element | null): boolean {
+  if (!root || !active) return false
+  return root.contains(active)
+}
+
+export function resolveExpanded(root: Pick<Element, "querySelector"> | null | undefined): boolean {
+  return !!root?.querySelector('[aria-expanded="true"], [data-expanded]')
+}
+
+export function shouldReleaseBlock(input: { expand: boolean; hovered: boolean; focused: boolean }): boolean {
+  return !input.expand && !input.hovered && !input.focused
+}
+
+export interface ResolveOpenChangeInput {
+  open: boolean
+  forceOpen: boolean | undefined
+  blocked: boolean
+  justClickedTrigger: boolean
+}
+
+export interface ResolveOpenChangeResult {
+  open?: boolean
+  justClickedTrigger: boolean
+}
+
+export function resolveOpenChange(input: ResolveOpenChangeInput): ResolveOpenChangeResult {
+  if (input.forceOpen) return { justClickedTrigger: input.justClickedTrigger }
+  if (input.blocked && input.open) return { justClickedTrigger: input.justClickedTrigger }
+  if (input.justClickedTrigger) return { justClickedTrigger: false }
+  return { open: input.open, justClickedTrigger: input.justClickedTrigger }
+}
+
+export function isActivationKey(key: string): boolean {
+  return key === "Enter" || key === " "
+}
+
+export function isTriggerPointerDown(trigger: Element | null | undefined, target: EventTarget | null): boolean {
+  if (trigger === target) return true
+  return target instanceof Node && !!trigger?.contains(target)
+}
+
+export function syncThemeAttribute(root: Element | null | undefined, target: Element) {
+  const theme = root?.closest("[data-theme]")?.getAttribute("data-theme")
+  if (theme) target.setAttribute("data-theme", theme)
+}
+
 export function TooltipV2(props: TooltipV2Props) {
   let ref: HTMLDivElement | undefined
   const [state, setState] = createStore({
@@ -33,21 +79,15 @@ export function TooltipV2(props: TooltipV2Props) {
 
   const close = () => setState("open", false)
 
-  const inside = () => {
-    const active = document.activeElement
-    if (!ref || !active) return false
-    return ref.contains(active)
-  }
-
   const drop = (expand = state.expand) => {
-    if (expand) return
-    if (ref?.matches(":hover")) return
-    if (inside()) return
+    const hovered = !!ref?.matches(":hover")
+    const focused = isFocusWithin(ref, document.activeElement)
+    if (!shouldReleaseBlock({ expand, hovered, focused })) return
     setState("block", false)
   }
 
   const sync = () => {
-    const expand = !!ref?.querySelector('[aria-expanded="true"], [data-expanded]')
+    const expand = resolveExpanded(ref)
     setState("expand", expand)
     if (expand) {
       setState("block", true)
@@ -63,7 +103,7 @@ export function TooltipV2(props: TooltipV2Props) {
   }
 
   const leave = () => {
-    if (!inside()) close()
+    if (!isFocusWithin(ref, document.activeElement)) close()
     drop()
   }
 
@@ -82,6 +122,17 @@ export function TooltipV2(props: TooltipV2Props) {
 
   let justClickedTrigger = false
 
+  const onOpenChange = (open: boolean) => {
+    const result = resolveOpenChange({
+      open,
+      forceOpen: local.forceOpen,
+      blocked: state.block,
+      justClickedTrigger,
+    })
+    justClickedTrigger = result.justClickedTrigger
+    if (result.open !== undefined) setState("open", result.open)
+  }
+
   return (
     <Switch>
       <Match when={local.inactive}>{local.children}</Match>
@@ -94,15 +145,7 @@ export function TooltipV2(props: TooltipV2Props) {
           closeDelay={0}
           ignoreSafeArea={local.ignoreSafeArea ?? true}
           open={local.forceOpen || state.open}
-          onOpenChange={(open) => {
-            if (local.forceOpen) return
-            if (state.block && open) return
-            if (justClickedTrigger) {
-              justClickedTrigger = false
-              return
-            }
-            setState("open", open)
-          }}
+          onOpenChange={onOpenChange}
         >
           <KobalteTooltip.Trigger
             ref={ref}
@@ -111,7 +154,7 @@ export function TooltipV2(props: TooltipV2Props) {
             class={local.class}
             onPointerDownCapture={arm}
             onKeyDownCapture={(event: KeyboardEvent) => {
-              if (event.key !== "Enter" && event.key !== " ") return
+              if (!isActivationKey(event.key)) return
               arm()
             }}
             onPointerLeave={leave}
@@ -121,19 +164,14 @@ export function TooltipV2(props: TooltipV2Props) {
           </KobalteTooltip.Trigger>
           <KobalteTooltip.Portal>
             <KobalteTooltip.Content
-              ref={(el) => {
-                const theme = ref?.closest("[data-theme]")?.getAttribute("data-theme")
-                if (theme) el.setAttribute("data-theme", theme)
-              }}
+              ref={(el) => syncThemeAttribute(ref, el)}
               data-component="tooltip-v2"
               data-placement={props.placement}
               data-force-open={local.forceOpen}
               class={local.contentClass}
               style={local.contentStyle}
               onPointerDownOutside={(e) => {
-                if (ref === e.target || (e.target instanceof Node && ref?.contains(e.target))) {
-                  justClickedTrigger = true
-                }
+                if (isTriggerPointerDown(ref, e.target)) justClickedTrigger = true
                 e.preventDefault()
               }}
             >
