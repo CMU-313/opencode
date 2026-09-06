@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { validateCustomProvider } from "./dialog-custom-provider-form"
+import { validateCustomProvider, type FormState } from "./dialog-custom-provider-form"
 
 const t = (key: string) => key
 
@@ -76,5 +76,75 @@ describe("validateCustomProvider", () => {
       key: "provider.custom.error.duplicate",
       value: undefined,
     })
+  })
+})
+
+
+const base: FormState = {
+  providerID: "custom-provider",
+  name: "Provider",
+  baseURL: "https://api.example.com",
+  apiKey: "secret",
+  models: [{ row: "m0", id: "model-a", name: "Model A", err: {} }],
+  headers: [],
+  err: {},
+}
+
+const run = (form: Partial<FormState>, extra: Partial<Parameters<typeof validateCustomProvider>[0]> = {}) =>
+  validateCustomProvider({
+    form: { ...base, ...form },
+    t,
+    disabledProviders: [],
+    existingProviderIDs: new Set(),
+    ...extra,
+  })
+
+describe("validateCustomProvider field errors", () => {
+  test("requires providerID", () => {
+    expect(run({ providerID: " " }).err.providerID).toBe("provider.custom.error.providerID.required")
+  })
+
+  test("rejects malformed providerID", () => {
+    expect(run({ providerID: "Bad ID" }).err.providerID).toBe("provider.custom.error.providerID.format")
+  })
+
+  test("rejects providerID that already exists and is not disabled", () => {
+    const result = run({}, { existingProviderIDs: new Set(["custom-provider"]) })
+    expect(result.err.providerID).toBe("provider.custom.error.providerID.exists")
+    expect(result.result).toBeUndefined()
+  })
+
+  test("requires name", () => {
+    expect(run({ name: "" }).err.name).toBe("provider.custom.error.name.required")
+  })
+
+  test("requires baseURL", () => {
+    expect(run({ baseURL: "" }).err.baseURL).toBe("provider.custom.error.baseURL.required")
+  })
+
+  test("rejects baseURL without http(s) scheme", () => {
+    expect(run({ baseURL: "api.example.com" }).err.baseURL).toBe("provider.custom.error.baseURL.format")
+  })
+
+  test("requires model id and name", () => {
+    const result = run({ models: [{ row: "m0", id: "", name: " ", err: {} }] })
+    expect(result.models[0]).toEqual({
+      id: "provider.custom.error.required",
+      name: "provider.custom.error.required",
+    })
+    expect(result.result).toBeUndefined()
+  })
+
+  test("requires header key when value is present", () => {
+    const result = run({ headers: [{ row: "h0", key: "", value: "token", err: {} }] })
+    expect(result.headers[0]).toEqual({
+      key: "provider.custom.error.required",
+      value: undefined,
+    })
+    expect(result.result).toBeUndefined()
+  })
+
+  test("uses plain api key when not an env reference", () => {
+    expect(run({ apiKey: " secret " }).result?.key).toBe("secret")
   })
 })
