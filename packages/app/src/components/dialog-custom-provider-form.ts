@@ -41,6 +41,34 @@ export type FormState = {
   }
 }
 
+function uniqueError(value: string, seen: Set<string>, t: Translator) {
+  if (!value) return t("provider.custom.error.required")
+  if (seen.has(value)) return t("provider.custom.error.duplicate")
+  seen.add(value)
+  return undefined
+}
+
+function validateModels(models: ModelRow[], t: Translator): ModelErr[] {
+  const seen = new Set<string>()
+  return models.map((m) => ({
+    id: uniqueError(m.id.trim(), seen, t),
+    name: m.name.trim() ? undefined : t("provider.custom.error.required"),
+  }))
+}
+
+function validateHeaders(headers: HeaderRow[], t: Translator): HeaderErr[] {
+  const seen = new Set<string>()
+  return headers.map((h) => {
+    const key = h.key.trim()
+    const value = h.value.trim()
+    if (!key && !value) return {}
+    return {
+      key: uniqueError(key.toLowerCase(), seen, t),
+      value: value ? undefined : t("provider.custom.error.required"),
+    }
+  })
+}
+
 type ValidateArgs = {
   form: FormState
   t: Translator
@@ -77,40 +105,11 @@ export function validateCustomProvider(input: ValidateArgs) {
       ? input.t("provider.custom.error.providerID.exists")
       : undefined
 
-  const seenModels = new Set<string>()
-  const models = input.form.models.map((m) => {
-    const id = m.id.trim()
-    const idError = !id
-      ? input.t("provider.custom.error.required")
-      : seenModels.has(id)
-        ? input.t("provider.custom.error.duplicate")
-        : (() => {
-            seenModels.add(id)
-            return undefined
-          })()
-    const nameError = !m.name.trim() ? input.t("provider.custom.error.required") : undefined
-    return { id: idError, name: nameError }
-  })
+  const models = validateModels(input.form.models, input.t)
   const modelsValid = models.every((m) => !m.id && !m.name)
   const modelConfig = Object.fromEntries(input.form.models.map((m) => [m.id.trim(), { name: m.name.trim() }]))
 
-  const seenHeaders = new Set<string>()
-  const headers = input.form.headers.map((h) => {
-    const key = h.key.trim()
-    const value = h.value.trim()
-
-    if (!key && !value) return {}
-    const keyError = !key
-      ? input.t("provider.custom.error.required")
-      : seenHeaders.has(key.toLowerCase())
-        ? input.t("provider.custom.error.duplicate")
-        : (() => {
-            seenHeaders.add(key.toLowerCase())
-            return undefined
-          })()
-    const valueError = !value ? input.t("provider.custom.error.required") : undefined
-    return { key: keyError, value: valueError }
-  })
+  const headers = validateHeaders(input.form.headers, input.t)
   const headersValid = headers.every((h) => !h.key && !h.value)
   const headerConfig = Object.fromEntries(
     input.form.headers
