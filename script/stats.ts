@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { formatChange } from "./stats-utils"
 
 async function sendToPostHog(event: string, properties: Record<string, any>) {
   const key = process.env["POSTHOG_KEY"]
@@ -120,18 +121,6 @@ function calculate(releases: Release[]) {
   }
 
   return { total, stats }
-}
-
-function formatChange(change: number) {
-  if (change > 0) {
-    return ` (+${change.toLocaleString()})`
-  }
-
-  if (change < 0) {
-    return ` (${change.toLocaleString()})`
-  }
-
-  return " (+0)"
 }
 
 async function save(githubTotal: number, npmDownloads: number) {
