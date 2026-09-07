@@ -1,5 +1,7 @@
 import { Select as Kobalte } from "@kobalte/core/select"
+import type { CollectionNode } from "@kobalte/core"
 import { Show, createMemo, onCleanup, splitProps, type ComponentProps, type JSX } from "solid-js"
+import { createHighlightTracker, formatSelectedValue, normalizeSelectValue } from "./select-v2-helpers"
 import "./select-v2.css"
 
 function groupOptions<T>(options: T[], groupBy?: (x: T) => string): { category: string; options: T[] }[] {
@@ -61,6 +63,38 @@ export type SelectV2Props<T> = Omit<
   valueClass?: string
 }
 
+function SelectItemV2<T>(props: {
+  itemProps: { item: CollectionNode<T> }
+  local: { children?: (item: T) => JSX.Element; label?: (item: T) => string }
+  onMove: (item: T | undefined) => void
+}) {
+  const rawValue = () => props.itemProps.item.rawValue
+
+  const content = () =>
+    props.local.children
+      ? props.local.children(rawValue())
+      : props.local.label
+        ? props.local.label(rawValue())
+        : String(rawValue() as string)
+
+  return (
+    <Kobalte.Item
+      {...props.itemProps}
+      data-component="menu-v2-item"
+      onPointerEnter={() => props.onMove(rawValue())}
+      onPointerMove={() => props.onMove(rawValue())}
+      onFocus={() => props.onMove(rawValue())}
+    >
+      <Kobalte.ItemLabel data-slot="menu-v2-item-content" as="span">
+        {content()}
+      </Kobalte.ItemLabel>
+      <Kobalte.ItemIndicator data-slot="menu-v2-item-indicator" forceMount>
+        <CheckSmall />
+      </Kobalte.ItemIndicator>
+    </Kobalte.Item>
+  )
+}
+
 export function SelectV2<T>(props: SelectV2Props<T>) {
   const [local, others] = splitProps(props, [
     "class",
@@ -90,29 +124,7 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
 
   const inline = () => (local.appearance ?? "base") === "inline"
 
-  const state: { key?: string; cleanup?: void | (() => void) } = {}
-
-  const stop = () => {
-    state.cleanup?.()
-    state.cleanup = undefined
-    state.key = undefined
-  }
-
-  const keyFor = (item: T) => (local.value ? local.value(item) : String(item as string))
-
-  const move = (item: T | undefined) => {
-    if (!local.onHighlight) return
-    if (!item) {
-      stop()
-      return
-    }
-    const key = keyFor(item)
-    if (state.key === key) return
-    state.cleanup?.()
-    state.cleanup = local.onHighlight(item)
-    state.key = key
-  }
-
+  const { move, stop } = createHighlightTracker(local)
   onCleanup(stop)
 
   const grouped = createMemo(() => groupOptions(local.options, local.groupBy))
@@ -143,29 +155,9 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
           </Show>
         </Kobalte.Section>
       )}
-      itemComponent={(itemProps) => (
-        <Kobalte.Item
-          {...itemProps}
-          data-component="menu-v2-item"
-          onPointerEnter={() => move(itemProps.item.rawValue)}
-          onPointerMove={() => move(itemProps.item.rawValue)}
-          onFocus={() => move(itemProps.item.rawValue)}
-        >
-          <Kobalte.ItemLabel data-slot="menu-v2-item-content" as="span">
-            {local.children
-              ? local.children(itemProps.item.rawValue)
-              : local.label
-                ? local.label(itemProps.item.rawValue)
-                : String(itemProps.item.rawValue as string)}
-          </Kobalte.ItemLabel>
-          <Kobalte.ItemIndicator data-slot="menu-v2-item-indicator" forceMount>
-            <CheckSmall />
-          </Kobalte.ItemIndicator>
-        </Kobalte.Item>
-      )}
+      itemComponent={(itemProps) => <SelectItemV2 itemProps={itemProps} local={local} onMove={move} />}
       onChange={(next) => {
-        const v = next == null ? null : Array.isArray(next) ? ((next[0] as T) ?? null) : (next as T)
-        local.onSelect?.(v)
+        local.onSelect?.(normalizeSelectValue(next))
         stop()
       }}
       onOpenChange={(open) => {
@@ -188,11 +180,7 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
       >
         <div data-slot="select-v2-value">
           <Kobalte.Value<T> data-slot="select-v2-value-text" class={local.valueClass}>
-            {(st) => {
-              const selected = st.selectedOption()
-              if (local.label && selected != null) return local.label(selected)
-              return selected != null ? (selected as string) : ""
-            }}
+            {(st) => formatSelectedValue(st.selectedOption(), local.label)}
           </Kobalte.Value>
         </div>
         <span data-slot="select-v2-chevron" aria-hidden="true">

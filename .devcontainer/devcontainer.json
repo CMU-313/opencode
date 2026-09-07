@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "opencode",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    },
+    "ghcr.io/devcontainers-extra/features/bun:1": {
+      "version": "1.3.14"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "remoteUser": "vscode",
+  // build-essential/pkg-config/python3 are needed for native deps (node-pty, tree-sitter)
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config python3 && bun install",
+  "forwardPorts": [3000, 4096],
+  "portsAttributes": {
+    "3000": {
+      "label": "Web app (Vite dev server)",
+      "onAutoForward": "notify"
+    },
+    "4096": {
+      "label": "opencode server",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["esbenp.prettier-vscode", "oxc.oxc-vscode", "editorconfig.editorconfig"],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  }
+}
