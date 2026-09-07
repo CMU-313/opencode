@@ -1,0 +1,8 @@
+{
+  "name": "opencode-dev",
+  "image": "oven/bun:1",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "postCreateCommand": "apt-get update && apt-get install -y python3 make g++ && bun install"
+}
