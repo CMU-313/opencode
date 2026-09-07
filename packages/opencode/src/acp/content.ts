@@ -28,92 +28,89 @@ export function promptContentToParts(content: readonly ContentBlock[]): PromptPa
 }
 
 export function contentBlockToParts(block: ContentBlock): PromptPart[] {
-  switch (block.type) {
-    case "text":
+  return handlers[block.type]?.(block as never) ?? []
+}
+
+function textBlockToParts(block: Extract<ContentBlock, { type: "text" }>): PromptPart[] {
+  return [
+    {
+      type: "text",
+      text: block.text,
+      ...audienceFlags(block.annotations?.audience ?? undefined),
+    },
+  ]
+}
+
+function imageBlockToParts(block: Extract<ContentBlock, { type: "image" }>): PromptPart[] {
+  const url = imageBlockUrl(block)
+  if (!url) return []
+  return [
+    {
+      type: "file",
+      url,
+      filename: filenameFromUri(block.uri ?? undefined) ?? "image",
+      mime: block.mimeType,
+    },
+  ]
+}
+
+function imageBlockUrl(block: Extract<ContentBlock, { type: "image" }>) {
+  if (block.data) return `data:${block.mimeType};base64,${block.data}`
+  if (block.uri?.startsWith("data:")) return block.uri
+  if (block.uri?.startsWith("http://") || block.uri?.startsWith("https://")) return block.uri
+}
+
+function resourceLinkBlockToParts(block: Extract<ContentBlock, { type: "resource_link" }>): PromptPart[] {
+  return [resourceLinkToPart(block)]
+}
+
+function resourceBlockToParts(block: Extract<ContentBlock, { type: "resource" }>): PromptPart[] {
+  if ("text" in block.resource) return resourceTextToParts(block.resource)
+  if (!block.resource.mimeType) return []
+  return resourceBlobToParts(block.resource.uri, block.resource.mimeType, block.resource.blob)
+}
+
+function resourceTextToParts(resource: { uri: string; text: string }): PromptPart[] {
+  try {
+    const parsed = new URL(resource.uri)
+    if (parsed.protocol === "file:") {
+      const line = parsed.hash.match(/^#L(\d+)/)?.[1]
+      let filepath: string
+      try {
+        filepath = fileURLToPath(parsed)
+      } catch {
+        filepath = decodeURIComponent(parsed.pathname)
+      }
+      if (path.sep === "\\") filepath = filepath.replace(/\\/g, "/")
       return [
         {
           type: "text",
-          text: block.text,
-          ...audienceFlags(block.annotations?.audience ?? undefined),
+          text: `[${filepath}${line ? `:${line}` : ""}]\n${resource.text}`,
         },
       ]
+    }
+  } catch {}
+  return [{ type: "text", text: `[${resource.uri}]\n${resource.text}` }]
+}
 
-    case "image":
-      if (block.data) {
-        return [
-          {
-            type: "file",
-            url: `data:${block.mimeType};base64,${block.data}`,
-            filename: filenameFromUri(block.uri ?? undefined) ?? "image",
-            mime: block.mimeType,
-          },
-        ]
-      }
-      if (block.uri?.startsWith("data:")) {
-        return [
-          {
-            type: "file",
-            url: block.uri,
-            filename: filenameFromUri(block.uri) ?? "image",
-            mime: block.mimeType,
-          },
-        ]
-      }
-      if (block.uri?.startsWith("http://") || block.uri?.startsWith("https://")) {
-        return [
-          {
-            type: "file",
-            url: block.uri,
-            filename: filenameFromUri(block.uri) ?? "image",
-            mime: block.mimeType,
-          },
-        ]
-      }
-      return []
+function resourceBlobToParts(uri: string, mimeType: string, blob: string): PromptPart[] {
+  return [
+    {
+      type: "file",
+      url: uri.startsWith("data:") ? uri : `data:${mimeType};base64,${blob}`,
+      filename: filenameFromUri(uri) ?? "file",
+      mime: mimeType,
+    },
+  ]
+}
 
-    case "resource_link":
-      return [resourceLinkToPart(block)]
-
-    case "resource":
-      if ("text" in block.resource) {
-        try {
-          const parsed = new URL(block.resource.uri)
-          if (parsed.protocol === "file:") {
-            const line = parsed.hash.match(/^#L(\d+)/)?.[1]
-            let filepath: string
-            try {
-              filepath = fileURLToPath(parsed)
-            } catch {
-              filepath = decodeURIComponent(parsed.pathname)
-            }
-            if (path.sep === "\\") filepath = filepath.replace(/\\/g, "/")
-            return [
-              {
-                type: "text",
-                text: `[${filepath}${line ? `:${line}` : ""}]\n${block.resource.text}`,
-              },
-            ]
-          }
-        } catch {}
-        return [{ type: "text", text: `[${block.resource.uri}]\n${block.resource.text}` }]
-      }
-      if (block.resource.mimeType) {
-        return [
-          {
-            type: "file",
-            url: block.resource.uri.startsWith("data:")
-              ? block.resource.uri
-              : `data:${block.resource.mimeType};base64,${block.resource.blob}`,
-            filename: filenameFromUri(block.resource.uri) ?? "file",
-            mime: block.resource.mimeType,
-          },
-        ]
-      }
-      return []
-
-    default:
-      return []
-  }
+const handlers: {
+  [K in ContentBlock["type"]]?: (block: Extract<ContentBlock, { type: K }>) => PromptPart[]
+} = {
+  text: textBlockToParts,
+  image: imageBlockToParts,
+  resource_link: resourceLinkBlockToParts,
+  resource: resourceBlockToParts,
 }
 
 export function partsToContentChunks(parts: readonly ReplayPart[]): ContentChunk[] {
