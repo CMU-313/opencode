@@ -3,6 +3,7 @@ import { FileIcon } from "../../components/file-icon"
 import { useI18n } from "../../context/i18n"
 import { useFilteredList } from "../../hooks"
 import { ButtonV2 } from "./button-v2"
+import { handleEditorKeyDown, handleMentionKeyDown } from "./line-comment-v2-keyboard"
 import "./line-comment-v2.css"
 
 /** Horizontal “more” glyph for the display-card overflow control (Figma outline-dots). */
@@ -225,39 +226,21 @@ export function LineCommentEditorV2(props: LineCommentEditorV2Props) {
               e.stopPropagation()
               if (e.isComposing || e.keyCode === 229) return
 
-              if (mentionOpen()) {
-                if (e.key === "Escape") {
-                  e.preventDefault()
-                  closeMention()
-                  return
-                }
-
-                if (e.key === "Tab") {
-                  if (mention.flat().length === 0) return
-                  e.preventDefault()
-                  selectActiveMention()
-                  return
-                }
-
-                const nav = e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter"
-                const ctrlNav = e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && (e.key === "n" || e.key === "p")
-                if ((nav || ctrlNav) && mention.flat().length > 0) {
-                  mention.onKeyDown(e)
-                  e.preventDefault()
-                  return
-                }
-              }
-
-              if (e.key === "Escape") {
-                e.preventDefault()
-                e.currentTarget.blur()
-                local.onCancel()
+              if (
+                handleMentionKeyDown(e, {
+                  open: mentionOpen(),
+                  hasItems: mention.flat().length > 0,
+                  close: closeMention,
+                  selectActive: selectActiveMention,
+                  navigate: mention.onKeyDown,
+                })
+              )
                 return
-              }
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                submit()
-              }
+              handleEditorKeyDown(e, {
+                blur: () => textareaRef?.blur(),
+                cancel: local.onCancel,
+                submit,
+              })
             }}
           />
           <Show when={mentionOpen() && mention.flat().length > 0}>
