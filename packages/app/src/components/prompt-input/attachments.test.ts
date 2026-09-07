@@ -22,6 +22,21 @@ describe("attachmentMime", () => {
     const file = new File([Uint8Array.of(0, 255, 1, 2)], "blob.bin", { type: "application/octet-stream" })
     expect(await attachmentMime(file)).toBeUndefined()
   })
+
+  test("keeps accepted image mime types", async () => {
+    const file = new File(["image"], "photo.png", { type: "image/png" })
+    expect(await attachmentMime(file)).toBe("image/png")
+  })
+
+  test("infers supported mime types from file extensions", async () => {
+    const image = new File(["image"], "photo.JPG", {
+      type: "application/octet-stream",
+    })
+    const pdf = new File(["%PDF-1.7"], "guide.pdf")
+
+    expect(await attachmentMime(image)).toBe("image/jpeg")
+    expect(await attachmentMime(pdf)).toBe("application/pdf")
+  })
 })
 
 describe("pickAttachmentFiles", () => {
