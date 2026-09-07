@@ -64,12 +64,13 @@ export function notifyShadowReady(opts: {
 
   const runReady = () => {
     const step = (left: number) => {
-      if (token !== opts.state.token) return
-      if (left <= 0) {
-        opts.onReady()
-        return
+      if (token === opts.state.token) {
+        if (left <= 0) {
+          opts.onReady()
+        } else {
+          requestAnimationFrame(() => step(left - 1))
+        }
       }
-      requestAnimationFrame(() => step(left - 1))
     }
 
     requestAnimationFrame(() => step(settle))
@@ -78,37 +79,42 @@ export function notifyShadowReady(opts: {
   const observeRoot = (root: ShadowRoot) => {
     if (opts.isReady(root)) {
       runReady()
-      return
-    }
-
-    if (typeof MutationObserver === "undefined") return
-
-    clearReadyWatcher(opts.state)
-    opts.state.observer = new MutationObserver(() => {
-      if (token !== opts.state.token) return
-      if (!opts.isReady(root)) return
-
+    } else if (typeof MutationObserver !== "undefined") {
       clearReadyWatcher(opts.state)
-      runReady()
-    })
-    opts.state.observer.observe(root, { childList: true, subtree: true })
+
+      opts.state.observer = new MutationObserver(() => {
+        if (token === opts.state.token && opts.isReady(root)) {
+          clearReadyWatcher(opts.state)
+          runReady()
+        }
+      })
+
+      opts.state.observer.observe(root, {
+        childList: true,
+        subtree: true,
+      })
+    }
   }
 
   const root = opts.getRoot()
-  if (!root) {
-    if (typeof MutationObserver === "undefined") return
 
+  if (root) {
+    observeRoot(root)
+  } else if (typeof MutationObserver !== "undefined") {
     opts.state.observer = new MutationObserver(() => {
-      if (token !== opts.state.token) return
+      if (token === opts.state.token) {
+        const next = opts.getRoot()
 
-      const next = opts.getRoot()
-      if (!next) return
-
-      observeRoot(next)
+        if (next) {
+          observeRoot(next)
+        }
+      }
     })
-    opts.state.observer.observe(opts.container, { childList: true, subtree: true })
-    return
-  }
 
-  observeRoot(root)
+    opts.state.observer.observe(opts.container, {
+      childList: true,
+      subtree: true,
+    })
+  }
 }
+
