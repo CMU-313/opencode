@@ -15,8 +15,15 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "yarn install",
-	"postCreateCommand": "curl -fsSL https://bun.sh/install | bash"
+	// Named steps run in parallel and are reported separately, so a failure in one
+	// is not hidden by the other. Both install into ~/.bun and ~/.qlty and append
+	// their PATH exports to ~/.bashrc.
+	// QLTY_VERSION is pinned so `qlty smells` metrics stay reproducible across
+	// rebuilds; drop it to track latest.
+	"postCreateCommand": {
+		"bun": "curl -fsSL https://bun.sh/install | bash",
+		"qlty": "QLTY_VERSION=0.643.0 bash -c 'curl -fsSL https://qlty.sh | bash'"
+	}
 
 
 	// Configure tool-specific properties.
