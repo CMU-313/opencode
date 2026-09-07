@@ -1,0 +1,12 @@
+{
+  "name": "Bun Development Environment",
+  "image": "oven/bun:1",
+  "forwardPorts": [3000],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Oven.bun-vscode"
+      ]
+    }
+  }
+}
