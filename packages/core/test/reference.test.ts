@@ -75,4 +75,18 @@ describe("Reference", () => {
       ])
     }).pipe(Effect.scoped, Effect.provide(referenceLayer)),
   )
+
+  it.effect("skips a Git source with an invalid branch name", () =>
+    Effect.gen(function* () {
+      const references = yield* Reference.Service
+      const source = Reference.GitSource.make({
+        type: "git",
+        repository: "owner/repo",
+        branch: "..",
+      })
+      yield* references.transform((editor) => editor.add("sdk", source))
+  
+      expect(yield* references.list()).toEqual([])
+    }).pipe(Effect.scoped, Effect.provide(referenceLayer)),
+  )
 })

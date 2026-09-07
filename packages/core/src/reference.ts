@@ -48,6 +48,48 @@ const layer = Layer.effect(
     const cache = yield* RepositoryCache.Service
     const scope = yield* Scope.Scope
     const materialized = new Map<string, Info>()
+
+    const toInfo = (name: string, path: AbsolutePath, source: Source): Info =>
+      new Info({
+        name,
+        path,
+        ...(source.description === undefined ? {} : { description: source.description }),
+        ...(source.hidden === undefined ? {} : { hidden: source.hidden }),
+        source,
+      })
+
+    const materializeRemote = (name: string, source: Source) =>
+      Effect.gen(function* () {
+        if (source.type === "local") return undefined
+
+        const repository = Repository.parse(source.repository)
+        if (!repository || !Repository.isRemote(repository)) return undefined
+
+        if (source.branch) {
+          try {
+            Repository.validateBranch(source.branch)
+          } catch {
+            return undefined
+          }
+        }
+
+        const path = AbsolutePath.make(Repository.cachePath(global.repos, repository, source.branch))
+        const info = toInfo(name, path, source)
+
+        yield* cache.ensure({ reference: repository, branch: source.branch, refresh: true }).pipe(
+          Effect.catchCause((cause) =>
+            Effect.logWarning("failed to materialize reference", {
+              name,
+              repository: source.repository,
+              cause,
+            }),
+          ),
+          Effect.forkIn(scope),
+        )
+
+        return info
+      })
+
     const state = State.create<Data, Draft>({
       initial: () => ({ sources: new Map() }),
       draft: (draft) => ({
@@ -60,47 +102,11 @@ const layer = Layer.effect(
           materialized.clear()
           for (const [name, source] of draft.list()) {
             if (source.type === "local") {
-              materialized.set(
-                name,
-                new Info({
-                  name,
-                  path: source.path,
-                  ...(source.description === undefined ? {} : { description: source.description }),
-                  ...(source.hidden === undefined ? {} : { hidden: source.hidden }),
-                  source,
-                }),
-              )
+              materialized.set(name, toInfo(name, source.path, source))
               continue
             }
-            const repository = Repository.parse(source.repository)
-            if (!repository || !Repository.isRemote(repository)) continue
-            if (source.branch) {
-              try {
-                Repository.validateBranch(source.branch)
-              } catch {
-                continue
-              }
-            }
-            materialized.set(
-              name,
-              new Info({
-                name,
-                path: AbsolutePath.make(Repository.cachePath(global.repos, repository, source.branch)),
-                ...(source.description === undefined ? {} : { description: source.description }),
-                ...(source.hidden === undefined ? {} : { hidden: source.hidden }),
-                source,
-              }),
-            )
-            yield* cache.ensure({ reference: repository, branch: source.branch, refresh: true }).pipe(
-              Effect.catchCause((cause) =>
-                Effect.logWarning("failed to materialize reference", {
-                  name,
-                  repository: source.repository,
-                  cause,
-                }),
-              ),
-              Effect.forkIn(scope),
-            )
+            const info = yield* materializeRemote(name, source)
+            if (info) materialized.set(name, info)
           }
           yield* events.publish(Event.Updated, {})
         }),
