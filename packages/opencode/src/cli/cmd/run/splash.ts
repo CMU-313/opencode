@@ -129,16 +129,11 @@ function write(
   )
 }
 
-function push(
-  lines: Array<{ left: number; top: number; text: string; fg: ColorInput; bg?: ColorInput; attrs?: number }>,
-  left: number,
-  top: number,
-  text: string,
-  fg: ColorInput,
-  bg?: ColorInput,
-  attrs?: number,
+export function push(
+  lines: Array<{ left: number; top: number; text: string; fg: ColorInput; bg?: ColorInput; attrs?: number}>,
+  cell: { left: number; top: number; text: string; fg: ColorInput; bg?: ColorInput; attrs?: number },
 ): void {
-  lines.push({ left, top, text, fg, bg, attrs })
+  lines.push(cell)
 }
 
 function draw(
@@ -155,18 +150,18 @@ function draw(
   let x = input.left
   for (const cell of cells(row)) {
     if (cell.mark === "full" || cell.mark === "mix") {
-      push(lines, x, input.top, cell.char, input.fg, input.shadow, input.attrs)
+      push(lines, { left: x, top: input.top, text: cell.char, fg: input.fg, bg: input.shadow, attrs: input.attrs })
       x += 1
       continue
     }
 
     if (cell.mark === "top") {
-      push(lines, x, input.top, cell.char, input.shadow, undefined, input.attrs)
+      push(lines, { left: x, top: input.top, text: cell.char, fg: input.shadow, attrs: input.attrs })
       x += 1
       continue
     }
 
-    push(lines, x, input.top, cell.char, input.fg, undefined, input.attrs)
+    push(lines, { left: x, top: input.top, text: cell.char, fg: input.fg, attrs: input.attrs })
     x += 1
   }
 }
@@ -194,16 +189,14 @@ function build(input: SplashWriterInput, kind: "entry" | "exit", ctx: Scrollback
       })
     }
 
-    push(lines, body_left, top, "OpenCode", right, undefined, TextAttributes.BOLD)
+    push(lines, { left: body_left, top, text: "OpenCode", fg: right, attrs: TextAttributes.BOLD })
     if (input.detail) {
-      push(
-        lines,
-        body_left,
-        top + 1,
-        Locale.truncateMiddle(input.detail, Math.max(1, width - body_left)),
-        left,
-        undefined,
-      )
+      push(lines, {
+        left: body_left,
+        top: top + 1,
+        text: Locale.truncateMiddle(input.detail, Math.max(1, width - body_left)),
+        fg: left,
+      })
     }
     height = top + mark.length
   }
@@ -225,20 +218,18 @@ function build(input: SplashWriterInput, kind: "entry" | "exit", ctx: Scrollback
     }
 
     if (input.showSession !== false) {
-      push(lines, body_left, top, session, left, undefined, TextAttributes.DIM)
-      push(lines, body_left + session.length, top, meta.title, right, undefined, TextAttributes.BOLD)
+      push(lines, { left: body_left, top, text: session, fg: left, attrs: TextAttributes.DIM })
+      push(lines, { left: body_left + session.length, top, text: meta.title, fg: right, attrs: TextAttributes.BOLD })
     }
 
-    push(lines, body_left, top + 1, label, left, undefined, TextAttributes.DIM)
-    push(
-      lines,
-      body_left + label.length,
-      top + 1,
-      `opencode --mini -s ${meta.session_id}`,
-      right,
-      undefined,
-      TextAttributes.BOLD,
-    )
+    push(lines, { left: body_left, top: top + 1, text: label, fg: left, attrs: TextAttributes.DIM })
+    push(lines, {
+      left: body_left + label.length,
+      top: top + 1,
+      text: `opencode --mini -s ${meta.session_id}`,
+      fg: right,
+      attrs: TextAttributes.BOLD,
+    })
     height = top + mark.length
   }
 
