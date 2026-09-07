@@ -231,7 +231,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
 
     const loadThemes = () => Promise.all(themeIDs().map(load)).then(() => store.themes)
 
-    
+    //changed section
     const handleThemeChange = (rawValue: string) => {
       const next = normalize(rawValue)
       if (!next) return
@@ -274,6 +274,8 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
       }
     }
 
+    //End of changed section
+    
     onMount(() => {
       makeEventListener(window, "storage", onStorage)
 
