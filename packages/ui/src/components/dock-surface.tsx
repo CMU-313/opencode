@@ -1,54 +1,19 @@
 import { type ComponentProps, splitProps } from "solid-js"
+import { withClassList } from "../props"
 
 export interface DockTrayProps extends ComponentProps<"div"> {
   attach?: "none" | "top"
 }
 
 export function DockShell(props: ComponentProps<"div">) {
-  const [split, rest] = splitProps(props, ["children", "class", "classList"])
-  return (
-    <div
-      {...rest}
-      data-dock-surface="shell"
-      classList={{
-        ...split.classList,
-        [split.class ?? ""]: !!split.class,
-      }}
-    >
-      {split.children}
-    </div>
-  )
+  return <div {...withClassList(props)} data-dock-surface="shell" />
 }
 
 export function DockShellForm(props: ComponentProps<"form">) {
-  const [split, rest] = splitProps(props, ["children", "class", "classList"])
-  return (
-    <form
-      {...rest}
-      data-dock-surface="shell"
-      classList={{
-        ...split.classList,
-        [split.class ?? ""]: !!split.class,
-      }}
-    >
-      {split.children}
-    </form>
-  )
+  return <form {...withClassList(props)} data-dock-surface="shell" />
 }
 
 export function DockTray(props: DockTrayProps) {
-  const [split, rest] = splitProps(props, ["attach", "children", "class", "classList"])
-  return (
-    <div
-      {...rest}
-      data-dock-surface="tray"
-      data-dock-attach={split.attach || "none"}
-      classList={{
-        ...split.classList,
-        [split.class ?? ""]: !!split.class,
-      }}
-    >
-      {split.children}
-    </div>
-  )
+  const [split, rest] = splitProps(props, ["attach"])
+  return <div {...withClassList(rest)} data-dock-surface="tray" data-dock-attach={split.attach || "none"} />
 }
