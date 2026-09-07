@@ -8,21 +8,36 @@ export function createLatestWorkerQueue<T extends { key: string }>(input: {
   const slots = new Map<string, Slot>()
   let running: Promise<void> | undefined
   let cursor = 0
-
+  //inserting code here
+  //this is a job in the array of jobs
+  async function runJob(job: Slot | { type: "dispose"; key: string }) {
+    if (job.type === "dispose"){
+      input.dispose(job.key)
+      return
+    }
+    if (slots.get(job.key) === job) slots.delete(job.key)
+    const request = job.request
+    job.request = undefined
+    if (request) await input.run(request)
+  }
+  //end inserted code
   const schedule = () => {
     if (running) return
     running = Promise.resolve()
       .then(async () => {
         while (cursor < jobs.length) {
           const job = jobs[cursor++]!
-          if (job.type === "dispose") {
-            input.dispose(job.key)
-            continue
-          }
-          if (slots.get(job.key) === job) slots.delete(job.key)
-          const request = job.request
-          job.request = undefined
-          if (request) await input.run(request)
+          // if (job.type === "dispose") {
+          //   input.dispose(job.key)
+          //   continue
+          // }
+          // if (slots.get(job.key) === job) slots.delete(job.key)
+          // const request = job.request
+          // job.request = undefined
+          // if (request) await input.run(request)
+
+          //I ADDED THIS
+          runJob(job)
         }
       })
       .finally(() => {
