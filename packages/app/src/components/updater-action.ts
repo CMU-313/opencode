@@ -4,22 +4,24 @@ import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { showToast } from "@/utils/toast"
 
-export function updaterAction(state: UpdaterState | undefined) {
-  if (!state) return { label: "settings.updates.action.checkNow" as const }
-  switch (state.status) {
-    case "checking":
-      return { label: "settings.updates.action.checking" as const }
-    case "downloading":
-      return { label: "settings.updates.action.downloading" as const }
-    case "ready":
-      return { label: "toast.update.action.installRestart" as const, run: "install" as const }
-    case "installing":
-      return { label: "settings.updates.action.installing" as const }
-    case "disabled":
-      return { label: "settings.updates.action.checkNow" as const }
-    default:
-      return { label: "settings.updates.action.checkNow" as const, run: "check" as const }
-  }
+const updaterActions = {
+  disabled: { label: "settings.updates.action.checkNow" },
+  idle: { label: "settings.updates.action.checkNow", run: "check" },
+  checking: { label: "settings.updates.action.checking" },
+  downloading: { label: "settings.updates.action.downloading" },
+  ready: { label: "toast.update.action.installRestart", run: "install" },
+  installing: { label: "settings.updates.action.installing" },
+  "up-to-date": { label: "settings.updates.action.checkNow", run: "check" },
+  error: { label: "settings.updates.action.checkNow", run: "check" },
+} as const satisfies Record<UpdaterState["status"], { label: string; run?: "check" | "install" }>
+
+type UpdaterAction = {
+  label: (typeof updaterActions)[UpdaterState["status"]]["label"]
+  run?: "check" | "install"
+}
+
+export function updaterAction(state: UpdaterState | undefined): UpdaterAction {
+  return updaterActions[state?.status ?? "disabled"]
 }
 
 export function useUpdaterAction() {

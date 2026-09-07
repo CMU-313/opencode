@@ -43,6 +43,11 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Run updater action tests
+        timeout-minutes: 2
+        working-directory: packages/app
+        run: bun test --conditions=solid --preload ./happydom.ts ./src/components/updater-action.test.ts
+
       - name: Configure git identity
         run: |
           git config --global user.email "bot@opencode.ai"
