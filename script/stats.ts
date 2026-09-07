@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { formatChange } from "./stats-utils"
 
 async function sendToPostHog(event: string, properties: Record<string, any>) {
   const key = process.env["POSTHOG_KEY"]
@@ -155,24 +156,10 @@ async function save(githubTotal: number, npmDownloads: number) {
       "# Download Stats\n\n| Date | GitHub Downloads | npm Downloads | Total |\n|------|------------------|---------------|-------|\n"
   }
 
-  const githubChange = githubTotal - previousGithub
-  const npmChange = npmDownloads - previousNpm
-  const totalChange = total - previousTotal
+  const githubChangeStr = formatChange(githubTotal - previousGithub)
+  const npmChangeStr = formatChange(npmDownloads - previousNpm)
+  const totalChangeStr = formatChange(total - previousTotal)
 
-  const githubChangeStr =
-    githubChange > 0
-      ? ` (+${githubChange.toLocaleString()})`
-      : githubChange < 0
-        ? ` (${githubChange.toLocaleString()})`
-        : " (+0)"
-  const npmChangeStr =
-    npmChange > 0 ? ` (+${npmChange.toLocaleString()})` : npmChange < 0 ? ` (${npmChange.toLocaleString()})` : " (+0)"
-  const totalChangeStr =
-    totalChange > 0
-      ? ` (+${totalChange.toLocaleString()})`
-      : totalChange < 0
-        ? ` (${totalChange.toLocaleString()})`
-        : " (+0)"
   const line = `| ${date} | ${githubTotal.toLocaleString()}${githubChangeStr} | ${npmDownloads.toLocaleString()}${npmChangeStr} | ${total.toLocaleString()}${totalChangeStr} |\n`
 
   if (!content.includes("# Download Stats")) {
