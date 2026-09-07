@@ -1912,6 +1912,46 @@ it.instance(
   },
 )
 
+it.instance(
+  "snowflake-cortex provider fetch passes SSE through unchanged for non-OAuth tokens",
+  Effect.gen(function* () {
+    yield* set("SNOWFLAKE_ACCOUNT", "test-account")
+    yield* set("SNOWFLAKE_CORTEX_PAT", "test-pat")
+    const provider = (yield* list)[ProviderV2.ID.make("snowflake-cortex")]
+    expect(provider).toBeDefined()
+    expect(provider.options.baseURL).toBe("https://test-account.snowflakecomputing.com/api/v2/cortex/v1")
+    const providerFetch = provider.options.fetch as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    expect(providerFetch).toBeDefined()
+
+    const sseChunk = `data: {"choices":[{"delta":{"role":"","content":"hello"}}]}\n\n`
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => {
+      const stream = new ReadableStream({
+        start(ctrl) {
+          ctrl.enqueue(new TextEncoder().encode(sseChunk))
+          ctrl.close()
+        },
+      })
+      return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } })
+    }) as typeof fetch
+
+    try {
+      const response = yield* Effect.promise(() =>
+        providerFetch("https://test-account.snowflakecomputing.com/api/v2/cortex/v1/chat", {
+          method: "POST",
+          body: JSON.stringify({ model: "test", messages: [], stream: true }),
+        }),
+      )
+      expect(response.status).toBe(200)
+      const text = yield* Effect.promise(() => response.text())
+      expect(text).toContain('"role":""')
+      expect(text).not.toContain('"role":"assistant"')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  }),
+)
+
 // Tests that need plugin file setup or multi-instance flows fall back to a
 // scoped tmpdir + provideInstance pattern via it.effect.
 
