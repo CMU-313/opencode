@@ -231,6 +231,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
 
     const loadThemes = () => Promise.all(themeIDs().map(load)).then(() => store.themes)
 
+    //important const
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.THEME_ID && e.newValue) {
         const next = normalize(e.newValue)
