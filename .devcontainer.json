@@ -15,8 +15,7 @@
       ]
     }
   },
-  "mounts": ["source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"], "remoteEnv": { "SSH_AUTH_SOCK": "/ssh-agent" },
   "onCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends python3 build-essential",
-  "postCreateCommand": "bun install",
+  "postCreateCommand": "bun install && curl -sfS https://qlty.sh | bash && sudo ln -sf $HOME/.qlty/bin/qlty /usr/local/bin/qlty",
   "remoteUser": "vscode"
 }
