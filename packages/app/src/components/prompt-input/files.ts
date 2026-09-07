@@ -84,15 +84,16 @@ function textBytes(bytes: Uint8Array) {
 
 export async function attachmentMime(file: File) {
   const type = kind(file.type)
-  if (IMAGE_MIMES.has(type)) return type
-  if (type === "application/pdf") return type
-
   const suffix = ext(file.name)
-  const fallback = IMAGE_EXTS.get(suffix) ?? (suffix === "pdf" ? "application/pdf" : undefined)
-  if ((!type || type === "application/octet-stream") && fallback) return fallback
+  const fallback =
+    !type || type === "application/octet-stream"
+      ? IMAGE_EXTS.get(suffix) ?? (suffix === "pdf" ? "application/pdf" : undefined)
+      : undefined
+  const recognized = IMAGE_MIMES.has(type) || type === "application/pdf" ? type : fallback
 
+  if (recognized) return recognized
   if (textMime(type)) return "text/plain"
+
   const bytes = new Uint8Array(await file.slice(0, SAMPLE).arrayBuffer())
-  if (!textBytes(bytes)) return
-  return "text/plain"
+  return textBytes(bytes) ? "text/plain" : undefined
 }
