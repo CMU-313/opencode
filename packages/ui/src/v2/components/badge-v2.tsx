@@ -1,4 +1,5 @@
 import { type ComponentProps, splitProps } from "solid-js"
+import { withClassList } from "../../props"
 import "./badge-v2.css"
 
 export interface TagProps extends ComponentProps<"span"> {
@@ -6,18 +7,6 @@ export interface TagProps extends ComponentProps<"span"> {
 }
 
 export function Tag(props: TagProps) {
-  const [split, rest] = splitProps(props, ["class", "classList", "children", "variant"])
-  return (
-    <span
-      {...rest}
-      data-component="tag"
-      data-variant={split.variant ?? "neutral"}
-      classList={{
-        ...split.classList,
-        [split.class ?? ""]: !!split.class,
-      }}
-    >
-      {split.children}
-    </span>
-  )
+  const [split, rest] = splitProps(props, ["variant"])
+  return <span {...withClassList(rest)} data-component="tag" data-variant={split.variant ?? "neutral"} />
 }
