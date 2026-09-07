@@ -501,146 +501,154 @@ export default function Share(props: {
 }
 
 export function fromV1(v1: Message.Info): MessageWithParts {
-  if (v1.role === "assistant") {
-    return {
-      id: v1.id,
-      sessionID: v1.metadata.sessionID,
-      role: "assistant",
-      parentID: "",
-      agent: "build",
-      time: {
-        created: v1.metadata.time.created,
-        completed: v1.metadata.time.completed,
-      },
-      cost: v1.metadata.assistant!.cost,
-      path: v1.metadata.assistant!.path,
-      summary: v1.metadata.assistant!.summary,
-      tokens: v1.metadata.assistant!.tokens ?? {
-        input: 0,
-        output: 0,
-        cache: {
-          read: 0,
-          write: 0,
-        },
-        reasoning: 0,
-      },
-      modelID: v1.metadata.assistant!.modelID,
-      providerID: v1.metadata.assistant!.providerID,
-      mode: "build",
-      error: v1.metadata.error,
-      parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
-        const base = {
-          id: index.toString(),
-          messageID: v1.id,
-          sessionID: v1.metadata.sessionID,
-        }
-        if (part.type === "text") {
-          return [
-            {
-              ...base,
-              type: "text",
-              text: part.text,
-            },
-          ]
-        }
-        if (part.type === "step-start") {
-          return [
-            {
-              ...base,
-              type: "step-start",
-            },
-          ]
-        }
-        if (part.type === "tool-invocation") {
-          return [
-            {
-              ...base,
-              type: "tool",
-              callID: part.toolInvocation.toolCallId,
-              tool: part.toolInvocation.toolName,
-              state: (() => {
-                if (part.toolInvocation.state === "partial-call") {
-                  return {
-                    status: "pending",
-                    input: {},
-                    raw: "",
-                  }
-                }
-
-                const { title, time, ...metadata } = v1.metadata.tool[part.toolInvocation.toolCallId]
-                if (part.toolInvocation.state === "call") {
-                  return {
-                    status: "running",
-                    input: part.toolInvocation.args,
-                    time: {
-                      start: time.start,
-                    },
-                  }
-                }
-
-                if (part.toolInvocation.state === "result") {
-                  return {
-                    status: "completed",
-                    input: part.toolInvocation.args,
-                    output: part.toolInvocation.result,
-                    title,
-                    time,
-                    metadata,
-                  }
-                }
-                throw new Error("unknown tool invocation state")
-              })(),
-            },
-          ]
-        }
-        return []
-      }),
-    }
-  }
-
-  if (v1.role === "user") {
-    return {
-      id: v1.id,
-      sessionID: v1.metadata.sessionID,
-      role: "user",
-      agent: "user",
-      model: {
-        providerID: "",
-        modelID: "",
-      },
-      time: {
-        created: v1.metadata.time.created,
-      },
-      parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
-        const base = {
-          id: index.toString(),
-          messageID: v1.id,
-          sessionID: v1.metadata.sessionID,
-        }
-        if (part.type === "text") {
-          return [
-            {
-              ...base,
-              type: "text",
-              text: part.text,
-            },
-          ]
-        }
-        if (part.type === "file") {
-          return [
-            {
-              ...base,
-              type: "file",
-              mime: part.mediaType,
-              filename: part.filename,
-              url: part.url,
-            },
-          ]
-        }
-        return []
-      }),
-    }
-  }
-
+  if (v1.role === "assistant") return fromV1Assistant(v1)
+  if (v1.role === "user") return fromV1User(v1)
   throw new Error("unknown message type")
+}
+
+function fromV1Assistant(v1: Message.Info): MessageWithParts {
+  return {
+    id: v1.id,
+    sessionID: v1.metadata.sessionID,
+    role: "assistant",
+    parentID: "",
+    agent: "build",
+    time: {
+      created: v1.metadata.time.created,
+      completed: v1.metadata.time.completed,
+    },
+    cost: v1.metadata.assistant!.cost,
+    path: v1.metadata.assistant!.path,
+    summary: v1.metadata.assistant!.summary,
+    tokens: v1.metadata.assistant!.tokens ?? {
+      input: 0,
+      output: 0,
+      cache: {
+        read: 0,
+        write: 0,
+      },
+      reasoning: 0,
+    },
+    modelID: v1.metadata.assistant!.modelID,
+    providerID: v1.metadata.assistant!.providerID,
+    mode: "build",
+    error: v1.metadata.error,
+    parts: v1.parts.flatMap((part, index) => toAssistantParts(part, index, v1)),
+  }
+}
+
+function toAssistantParts(part: Message.MessagePart, index: number, v1: Message.Info): MessageV2.Part[] {
+  const base = {
+    id: index.toString(),
+    messageID: v1.id,
+    sessionID: v1.metadata.sessionID,
+  }
+  if (part.type === "text") {
+    return [
+      {
+        ...base,
+        type: "text",
+        text: part.text,
+      },
+    ]
+  }
+  if (part.type === "step-start") {
+    return [
+      {
+        ...base,
+        type: "step-start",
+      },
+    ]
+  }
+  if (part.type === "tool-invocation") {
+    return [
+      {
+        ...base,
+        type: "tool",
+        callID: part.toolInvocation.toolCallId,
+        tool: part.toolInvocation.toolName,
+        state: toToolState(part, v1),
+      },
+    ]
+  }
+  return []
+}
+
+function toToolState(part: Message.ToolInvocationPart, v1: Message.Info): MessageV2.ToolState {
+  if (part.toolInvocation.state === "partial-call") {
+    return {
+      status: "pending",
+      input: {},
+      raw: "",
+    }
+  }
+
+  const { title, time, ...metadata } = v1.metadata.tool[part.toolInvocation.toolCallId]
+  if (part.toolInvocation.state === "call") {
+    return {
+      status: "running",
+      input: part.toolInvocation.args,
+      time: {
+        start: time.start,
+      },
+    }
+  }
+
+  if (part.toolInvocation.state === "result") {
+    return {
+      status: "completed",
+      input: part.toolInvocation.args,
+      output: part.toolInvocation.result,
+      title,
+      time,
+      metadata,
+    }
+  }
+  throw new Error("unknown tool invocation state")
+}
+
+function fromV1User(v1: Message.Info): MessageWithParts {
+  return {
+    id: v1.id,
+    sessionID: v1.metadata.sessionID,
+    role: "user",
+    agent: "user",
+    model: {
+      providerID: "",
+      modelID: "",
+    },
+    time: {
+      created: v1.metadata.time.created,
+    },
+    parts: v1.parts.flatMap((part, index) => toUserParts(part, index, v1)),
+  }
+}
+
+function toUserParts(part: Message.MessagePart, index: number, v1: Message.Info): MessageV2.Part[] {
+  const base = {
+    id: index.toString(),
+    messageID: v1.id,
+    sessionID: v1.metadata.sessionID,
+  }
+  if (part.type === "text") {
+    return [
+      {
+        ...base,
+        type: "text",
+        text: part.text,
+      },
+    ]
+  }
+  if (part.type === "file") {
+    return [
+      {
+        ...base,
+        type: "file",
+        mime: part.mediaType,
+        filename: part.filename,
+        url: part.url,
+      },
+    ]
+  }
+  return []
 }
