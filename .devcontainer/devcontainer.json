@@ -1,0 +1,5 @@
+{
+	"name": "Bun Dev Container",
+	"image": "oven/bun:1",
+	"postCreateCommand": "apt-get update && apt-get install -y python3 make g++ git && bun --version"
+}

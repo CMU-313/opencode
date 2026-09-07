@@ -68,4 +68,5 @@ describe("Repository", () => {
     expect(Repository.same(shorthand, Repository.parseRemote("https://github.com/owner/repo.git"))).toBe(true)
     expect(Repository.same(shorthand, Repository.parseRemote("github.com/owner/repo"))).toBe(true)
   })
+
 })
