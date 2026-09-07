@@ -929,27 +929,6 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             } catch {}
           }
 
-          if (response.body && response.headers.get("content-type")?.includes("text/event-stream")) {
-            const reader = response.body.getReader()
-            const encoder = new TextEncoder()
-            const decoder = new TextDecoder()
-            const stream = new ReadableStream({
-              async pull(ctrl) {
-                const { done, value } = await reader.read()
-                if (done) {
-                  ctrl.close()
-                  return
-                }
-                const text = decoder.decode(value, { stream: true })
-                ctrl.enqueue(encoder.encode(text.replace(/"role"\s*:\s*""/g, '"role":"assistant"')))
-              },
-              cancel() {
-                reader.cancel()
-              },
-            })
-            return new Response(stream, { headers: response.headers, status: response.status })
-          }
-
           return response
         }
       }
