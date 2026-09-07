@@ -15,20 +15,16 @@ import type { MessageV2 } from "./message-v2"
 import type { MessageID } from "./schema"
 
 function extract(messages: SessionV1.WithParts[]) {
-  const paths = new Set<string>()
-  for (const msg of messages) {
-    for (const part of msg.parts) {
-      if (part.type === "tool" && part.tool === "read" && part.state.status === "completed") {
-        if (part.state.time.compacted) continue
-        const loaded = part.state.metadata?.loaded
-        if (!loaded || !Array.isArray(loaded)) continue
-        for (const p of loaded) {
-          if (typeof p === "string") paths.add(p)
-        }
-      }
-    }
-  }
-  return paths
+  return new Set(messages.flatMap((msg) => msg.parts).flatMap(loadedPaths))
+}
+
+// Paths a completed, uncompacted read tool call reported loading. Anything else contributes none.
+function loadedPaths(part: SessionV1.Part) {
+  if (part.type !== "tool" || part.tool !== "read") return []
+  if (part.state.status !== "completed" || part.state.time.compacted) return []
+  const loaded = part.state.metadata?.loaded
+  if (!Array.isArray(loaded)) return []
+  return loaded.filter((p) => typeof p === "string")
 }
 
 export interface Interface {
