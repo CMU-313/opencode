@@ -40,4 +40,16 @@ describe("prompt local attachments", () => {
       ),
     ).toBeUndefined()
   })
+
+  test("ignores unreadable SVG attachments", async () => {
+    expect(
+      await readLocalAttachmentWith(
+        {
+          ...files({ mime: "image/svg+xml" }),
+          readText: async () => Promise.reject(new Error("missing")),
+        },
+        "/tmp/missing.svg",
+      ),
+    ).toBeUndefined()
+  })
 })
