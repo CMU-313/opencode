@@ -116,14 +116,14 @@ const openSnapshot = (request: WebSocketRequest, redactor: Redactor) => {
   return { url: snapshot.url, headers: snapshot.headers }
 }
 
-const makeRecordingSocket = (
-  upstream: Socket.Socket,
-  cassette: CassetteService.Interface,
-  name: string,
-  request: WebSocketRequest,
-  options: WebSocketRecorderOptions,
-  redactor: Redactor,
-) =>
+const makeRecordingSocket = (input: {
+  upstream: Socket.Socket
+  cassette: CassetteService.Interface
+  name: string
+  request: WebSocketRequest
+  options: WebSocketRecorderOptions
+  redactor: Redactor
+}) =>
   Effect.gen(function* () {
     const active = yield* Ref.make<ActiveRecording | undefined>(undefined)
     const writeLock = yield* Semaphore.make(1)
@@ -140,11 +140,11 @@ const makeRecordingSocket = (
           }
           const occupied = yield* Ref.modify(active, (current) => [current !== undefined, current ?? state])
           if (occupied) return yield* Effect.die("Concurrent runs of a recorded WebSocket are not supported")
-          yield* upstream
+          yield* input.upstream
             .runRaw(
               (message) => {
                 if (!Ref.getUnsafe(state.accepting)) throw new Error("WebSocket received a frame after closing")
-                state.events.push(redactEvent(encodeEvent("server", message), redactor))
+                state.events.push(redactEvent(encodeEvent("server", message), input.redactor))
                 return handler(message)
               },
               {
@@ -163,15 +163,15 @@ const makeRecordingSocket = (
                       yield* Ref.set(state.accepting, false)
                       yield* Ref.set(active, undefined)
                       if (!Exit.isSuccess(exit) || !state.opened || !state.valid) return
-                      yield* cassette
+                      yield* input.cassette
                         .append(
-                          name,
+                          input.name,
                           {
                             transport: "websocket",
-                            open: openSnapshot(request, redactor),
+                            open: openSnapshot(input.request, input.redactor),
                             events: [...state.events],
                           },
-                          options.metadata,
+                          input.options.metadata,
                         )
                         .pipe(Effect.orDie)
                     }),
@@ -180,7 +180,7 @@ const makeRecordingSocket = (
               ),
             )
         }),
-      writer: upstream.writer.pipe(
+      writer: input.upstream.writer.pipe(
         Effect.map(
           (write) => (message) =>
             writeLock.withPermit(
@@ -189,7 +189,7 @@ const makeRecordingSocket = (
                 const state = yield* Ref.get(active)
                 if (!state || !(yield* Ref.get(state.accepting)))
                   return yield* Effect.die("WebSocket writer used without an active socket run")
-                const event = redactEvent(encodeEvent("client", message), redactor)
+                const event = redactEvent(encodeEvent("client", message), input.redactor)
                 yield* state.eventLock.withPermit(Effect.sync(() => state.events.push(event)))
                 return yield* write(message).pipe(Effect.onError(() => Effect.sync(() => (state.valid = false))))
               }),
@@ -293,7 +293,7 @@ const recordingLayer = (
       const cassette = yield* CassetteService.Service
       const redactor = make(options.redact)
       if ((forcedMode ?? (yield* resolveAutoMode(cassette, name))) === "record")
-        return yield* makeRecordingSocket(upstream, cassette, name, request, options, redactor)
+        return yield* makeRecordingSocket({ upstream, cassette, name, request, options, redactor })
       return yield* makeReplaySocket(cassette, name, request, options, redactor)
     }),
   )

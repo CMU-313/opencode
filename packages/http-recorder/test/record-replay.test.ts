@@ -209,7 +209,11 @@ describe("http-recorder", () => {
 
   test("records WebSocket frames in order with metadata and redaction", async () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "http-recorder-websocket-"))
-    const response = JSON.stringify({ type: "response.completed", token: "server-secret", privateValue: "server-value" })
+    const response = JSON.stringify({
+      type: "response.completed",
+      token: "server-secret",
+      privateValue: "server-value",
+    })
     const received: Array<string | Uint8Array> = []
     let receive: ((message: string | Uint8Array) => Effect.Effect<unknown, unknown, unknown> | void) | undefined
     const upstream = Socket.make({
