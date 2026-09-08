@@ -83,32 +83,34 @@ export const serializeToolContent = (content: SessionMessage.ToolStateCompleted[
     )
     .join("\n")
 
-const serialize = (message: SessionMessage.Message) => {
-  if (message.type === "user") {
-    const files = message.files?.map((file) => `[Attached ${file.mime}: ${file.name ?? file.uri}]`) ?? []
-    return [`[User]: ${message.text}`, ...files].join("\n")
-  }
-  if (message.type === "assistant") {
-    return message.content
-      .flatMap((part) => {
-        if (part.type === "text") return [`[Assistant]: ${part.text}`]
-        if (part.type === "reasoning") return part.text ? [`[Assistant reasoning]: ${part.text}`] : []
-        const input = typeof part.state.input === "string" ? part.state.input : JSON.stringify(part.state.input)
-        if (part.state.status === "completed")
-          return [
-            `[Assistant tool call]: ${part.name}(${input})`,
-            `[Tool result]: ${truncate(serializeToolContent(part.state.content))}`,
-          ]
-        if (part.state.status === "error")
-          return [`[Assistant tool call]: ${part.name}(${input})`, `[Tool error]: ${part.state.error.message}`]
-        return [`[Assistant tool call]: ${part.name}(${input})`]
-      })
-      .join("\n")
-  }
-  if (message.type === "system") return `[System update]: ${message.text}`
-  if (message.type === "synthetic") return `[Synthetic context]: ${message.text}`
-  if (message.type === "shell") return `[Shell]: ${message.command}\n${truncate(message.output)}`
-  return ""
+const serializeAssistantPart = (part: SessionMessage.AssistantContent): string[] => {
+  if (part.type === "text") return [`[Assistant]: ${part.text}`]
+  if (part.type === "reasoning") return part.text ? [`[Assistant reasoning]: ${part.text}`] : []
+  const input = typeof part.state.input === "string" ? part.state.input : JSON.stringify(part.state.input)
+  const call = `[Assistant tool call]: ${part.name}(${input})`
+  if (part.state.status === "completed")
+    return [call, `[Tool result]: ${truncate(serializeToolContent(part.state.content))}`]
+  if (part.state.status === "error") return [call, `[Tool error]: ${part.state.error.message}`]
+  return [call]
+}
+
+const SERIALIZERS: {
+  [K in SessionMessage.Type]?: (message: Extract<SessionMessage.Message, { type: K }>) => string
+} = {
+  user: (message) =>
+    [
+      `[User]: ${message.text}`,
+      ...(message.files?.map((file) => `[Attached ${file.mime}: ${file.name ?? file.uri}]`) ?? []),
+    ].join("\n"),
+  assistant: (message) => message.content.flatMap(serializeAssistantPart).join("\n"),
+  system: (message) => `[System update]: ${message.text}`,
+  synthetic: (message) => `[Synthetic context]: ${message.text}`,
+  shell: (message) => `[Shell]: ${message.command}\n${truncate(message.output)}`,
+}
+
+export const serialize = (message: SessionMessage.Message): string => {
+  const handler = SERIALIZERS[message.type] as ((message: SessionMessage.Message) => string) | undefined
+  return handler ? handler(message) : ""
 }
 
 const settings = (documents: readonly Config.Entry[]) => {
