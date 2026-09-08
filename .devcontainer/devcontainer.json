@@ -1,0 +1,14 @@
+{
+  "name": "OpenCode",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "forwardPorts": [4096, 5173],
+  "postCreateCommand": "bun install",
+  "customizations": {
+    "vscode": {
+      "extensions": ["oven.bun-vscode"]
+    }
+  },
+  "remoteUser": "root"
+}

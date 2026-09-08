@@ -1,0 +1,4 @@
+$ bun lint packages/desktop/src/main/apps.ts packages/desktop/src/main/apps.test.ts
+$ oxlint packages/desktop/src/main/apps.ts packages/desktop/src/main/apps.test.ts
+Found 0 warnings and 0 errors.
+Finished in 5ms on 2 files with 93 rules using 15 threads.

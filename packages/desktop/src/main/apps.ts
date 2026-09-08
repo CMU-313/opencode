@@ -36,6 +36,99 @@ async function checkMacosApp(appName: string) {
     .catch(() => false)
 }
 
+function hasExt(path: string, ext: string) {
+  return extname(path).toLowerCase() === `.${ext}`
+}
+
+function normalizeKey(value: string) {
+  return value
+    .split("")
+    .filter((ch) => /[a-z0-9]/i.test(ch))
+    .map((ch) => ch.toLowerCase())
+    .join("")
+}
+
+function resolveRelativeExe(base: string, token: string) {
+  const lower = token.toLowerCase()
+  const index = lower.indexOf("%~dp0")
+  if (index < 0) return null
+
+  const suffix = token.slice(index + 5)
+  let current = base
+  for (const part of suffix
+    .replace(/\//g, "\\")
+    .split("\\")
+    .filter((segment) => segment && segment !== ".")) {
+    current = part === ".." ? dirname(current) : join(current, part)
+  }
+  return current
+}
+
+async function resolveCmd(path: string) {
+  const content = await readFile(path, "utf8")
+  for (const token of content.split('"').map((value) => value.trim())) {
+    if (!token.toLowerCase().includes(".exe")) continue
+
+    const relative = resolveRelativeExe(dirname(path), token)
+    if (relative && (await exists(relative))) return relative
+    if (await exists(token)) return token
+  }
+  return null
+}
+
+async function resolveFromScripts(paths: string[]) {
+  for (const path of paths) {
+    if (hasExt(path, "cmd") || hasExt(path, "bat")) {
+      const resolved = await resolveCmd(path)
+      if (resolved) return resolved
+    }
+
+    if (extname(path)) continue
+
+    for (const script of [`${path}.cmd`, `${path}.bat`]) {
+      if (!(await exists(script))) continue
+      const resolved = await resolveCmd(script)
+      if (resolved) return resolved
+    }
+  }
+  return null
+}
+
+async function resolveByFuzzyName(appName: string, paths: string[]) {
+  const key = normalizeKey(appName)
+  if (!key) return null
+
+  for (const path of paths) {
+    const dirs = [dirname(path), dirname(dirname(path)), dirname(dirname(dirname(path)))]
+    for (const dir of dirs) {
+      try {
+        for (const entry of await readdir(dir)) {
+          const candidate = join(dir, entry)
+          if (!hasExt(candidate, "exe")) continue
+          const name = normalizeKey(entry.replace(/\.exe$/i, ""))
+          if (name.includes(key) || key.includes(name)) return candidate
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+  return null
+}
+
+/** Resolve an app path from `where`-style candidate lines. Exported for tests. */
+export async function pickWindowsAppPath(appName: string, whereOutput: string) {
+  const paths = whereOutput
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  const exe = paths.find((path) => hasExt(path, "exe"))
+  if (exe) return exe
+
+  return (await resolveFromScripts(paths)) ?? (await resolveByFuzzyName(appName, paths)) ?? paths[0] ?? null
+}
+
 async function resolveWindowsAppPath(appName: string): Promise<string | null> {
   let output: string
   try {
@@ -44,93 +137,5 @@ async function resolveWindowsAppPath(appName: string): Promise<string | null> {
     return null
   }
 
-  const paths = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-
-  const hasExt = (path: string, ext: string) => extname(path).toLowerCase() === `.${ext}`
-
-  const exe = paths.find((path) => hasExt(path, "exe"))
-  if (exe) return exe
-
-  const resolveCmd = async (path: string) => {
-    const content = await readFile(path, "utf8")
-    for (const token of content.split('"').map((value: string) => value.trim())) {
-      const lower = token.toLowerCase()
-      if (!lower.includes(".exe")) continue
-
-      const index = lower.indexOf("%~dp0")
-      if (index >= 0) {
-        const base = dirname(path)
-        const suffix = token.slice(index + 5)
-        const resolved = suffix
-          .replace(/\//g, "\\")
-          .split("\\")
-          .filter((part: string) => part && part !== ".")
-          .reduce((current: string, part: string) => {
-            if (part === "..") return dirname(current)
-            return join(current, part)
-          }, base)
-
-        if (await exists(resolved)) return resolved
-      }
-
-      if (await exists(token)) return token
-    }
-
-    return null
-  }
-
-  for (const path of paths) {
-    if (hasExt(path, "cmd") || hasExt(path, "bat")) {
-      const resolved = await resolveCmd(path)
-      if (resolved) return resolved
-    }
-
-    if (!extname(path)) {
-      const cmd = `${path}.cmd`
-      if (await exists(cmd)) {
-        const resolved = await resolveCmd(cmd)
-        if (resolved) return resolved
-      }
-
-      const bat = `${path}.bat`
-      if (await exists(bat)) {
-        const resolved = await resolveCmd(bat)
-        if (resolved) return resolved
-      }
-    }
-  }
-
-  const key = appName
-    .split("")
-    .filter((value: string) => /[a-z0-9]/i.test(value))
-    .map((value: string) => value.toLowerCase())
-    .join("")
-
-  if (key) {
-    for (const path of paths) {
-      const dirs = [dirname(path), dirname(dirname(path)), dirname(dirname(dirname(path)))]
-      for (const dir of dirs) {
-        try {
-          for (const entry of await readdir(dir)) {
-            const candidate = join(dir, entry)
-            if (!hasExt(candidate, "exe")) continue
-            const stem = entry.replace(/\.exe$/i, "")
-            const name = stem
-              .split("")
-              .filter((value: string) => /[a-z0-9]/i.test(value))
-              .map((value: string) => value.toLowerCase())
-              .join("")
-            if (name.includes(key) || key.includes(name)) return candidate
-          }
-        } catch {
-          continue
-        }
-      }
-    }
-  }
-
-  return paths[0] ?? null
+  return pickWindowsAppPath(appName, output)
 }

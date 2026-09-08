@@ -1,0 +1,19 @@
+$ bun --cwd packages/desktop test
+$ bun test src/main/apps.test.ts
+bun test v1.4.2 (744846f84)
+
+src/main/apps.test.ts:
+(pass) checkAppExists > returns true on win32 and linux without probing the filesystem
+(pass) resolveAppPath > returns the app name unchanged off Windows
+(pass) pickWindowsAppPath > returns null for empty where output [0.34ms]
+(pass) pickWindowsAppPath > prefers a direct .exe path from where output [0.50ms]
+(pass) pickWindowsAppPath > resolves a .cmd wrapper that points at an absolute exe [0.54ms]
+(pass) pickWindowsAppPath > resolves an extensionless where hit via a sibling .bat wrapper [0.51ms]
+(pass) pickWindowsAppPath > resolves a .cmd wrapper that uses %~dp0 relative exe paths [0.50ms]
+(pass) pickWindowsAppPath > falls back to fuzzy exe name matching near where paths [0.39ms]
+(pass) pickWindowsAppPath > falls back to the first where path when nothing else matches [0.47ms]
+
+ 9 pass
+ 0 fail
+ 8 expect() calls
+Ran 9 tests across 1 file. [8.00ms]
