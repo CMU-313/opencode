@@ -18,6 +18,7 @@ import { Snapshot } from "@/snapshot"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import * as Bom from "@/util/bom"
+import type { InstanceContext } from "@/project/instance-context"
 
 function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
@@ -55,6 +56,16 @@ export const Parameters = Schema.Struct({
   }),
 })
 
+function countChanges(contentOld: string, contentNew: string) {
+  let additions = 0
+  let deletions = 0
+  for (const change of diffLines(contentOld, contentNew)) {
+    if (change.added) additions += change.count || 0
+    if (change.removed) deletions += change.count || 0
+  }
+  return { additions, deletions }
+}
+
 export const EditTool = Tool.define(
   "edit",
   Effect.gen(function* () {
@@ -62,6 +73,105 @@ export const EditTool = Tool.define(
     const afs = yield* FSUtil.Service
     const format = yield* Format.Service
     const events = yield* EventV2Bridge.Service
+
+    const requestEditPermission = (ctx: Tool.Context, instance: InstanceContext, filePath: string, diff: string) =>
+      ctx.ask({
+        permission: "edit",
+        patterns: [path.relative(instance.worktree, filePath)],
+        always: ["*"],
+        metadata: {
+          filepath: filePath,
+          diff,
+        },
+      })
+
+    const createFile = (ctx: Tool.Context, instance: InstanceContext, filePath: string, newString: string) =>
+      Effect.gen(function* () {
+        const existed = yield* afs.existsSafe(filePath)
+        if (existed) {
+          throw new Error(
+            "oldString cannot be empty when editing an existing file. Provide the exact text to replace, or use write for an intentional full-file replacement.",
+          )
+        }
+
+        const next = Bom.split(newString)
+        const desiredBom = next.bom
+        const contentOld = ""
+        let contentNew = next.text
+        const diff = trimDiff(createTwoFilesPatch(filePath, filePath, contentOld, contentNew))
+
+        yield* requestEditPermission(ctx, instance, filePath, diff)
+        yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
+        if (yield* format.file(filePath)) {
+          contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
+        }
+        yield* events.publish(FileSystem.Event.Edited, { file: filePath })
+        yield* events.publish(Watcher.Event.Updated, {
+          file: filePath,
+          event: "add",
+        })
+
+        return { contentOld, contentNew, diff }
+      })
+
+    const editExistingFile = (
+      ctx: Tool.Context,
+      instance: InstanceContext,
+      filePath: string,
+      params: Schema.Schema.Type<typeof Parameters>,
+    ) =>
+      Effect.gen(function* () {
+        const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        if (!info) throw new Error(`File ${filePath} not found`)
+        if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
+        const source = yield* Bom.readFile(afs, filePath)
+        const contentOld = source.text
+
+        const ending = detectLineEnding(contentOld)
+        const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
+        const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
+
+        const next = Bom.split(replace(contentOld, old, replacement, params.replaceAll))
+        const desiredBom = source.bom || next.bom
+        let contentNew = next.text
+
+        const computeDiff = () =>
+          trimDiff(
+            createTwoFilesPatch(
+              filePath,
+              filePath,
+              normalizeLineEndings(contentOld),
+              normalizeLineEndings(contentNew),
+            ),
+          )
+
+        let diff = computeDiff()
+        yield* requestEditPermission(ctx, instance, filePath, diff)
+
+        yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
+        if (yield* format.file(filePath)) {
+          contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
+        }
+        yield* events.publish(FileSystem.Event.Edited, { file: filePath })
+        yield* events.publish(Watcher.Event.Updated, {
+          file: filePath,
+          event: "change",
+        })
+        diff = computeDiff()
+
+        return { contentOld, contentNew, diff }
+      })
+
+    const buildOutput = (filePath: string) =>
+      Effect.gen(function* () {
+        let output = "Edit applied successfully."
+        yield* lsp.touchFile(filePath, "document")
+        const diagnostics = yield* lsp.diagnostics()
+        const normalizedFilePath = FSUtil.normalizePath(filePath)
+        const block = LSP.Diagnostic.report(filePath, diagnostics[normalizedFilePath] ?? [])
+        if (block) output += `\n\nLSP errors detected in this file, please fix:\n${block}`
+        return { output, diagnostics }
+      })
 
     return {
       description: DESCRIPTION,
@@ -82,102 +192,14 @@ export const EditTool = Tool.define(
             : path.join(instance.directory, params.filePath)
           yield* assertExternalDirectoryEffect(ctx, filePath)
 
-          let diff = ""
-          let contentOld = ""
-          let contentNew = ""
-          yield* lock(filePath).withPermits(1)(
-            Effect.gen(function* () {
-              if (params.oldString === "") {
-                const existed = yield* afs.existsSafe(filePath)
-                if (existed) {
-                  throw new Error(
-                    "oldString cannot be empty when editing an existing file. Provide the exact text to replace, or use write for an intentional full-file replacement.",
-                  )
-                }
-                const next = Bom.split(params.newString)
-                const desiredBom = next.bom
-                contentOld = ""
-                contentNew = next.text
-                diff = trimDiff(createTwoFilesPatch(filePath, filePath, contentOld, contentNew))
-                yield* ctx.ask({
-                  permission: "edit",
-                  patterns: [path.relative(instance.worktree, filePath)],
-                  always: ["*"],
-                  metadata: {
-                    filepath: filePath,
-                    diff,
-                  },
-                })
-                yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
-                if (yield* format.file(filePath)) {
-                  contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
-                }
-                yield* events.publish(FileSystem.Event.Edited, { file: filePath })
-                yield* events.publish(Watcher.Event.Updated, {
-                  file: filePath,
-                  event: "add",
-                })
-                return
-              }
-
-              const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
-              if (!info) throw new Error(`File ${filePath} not found`)
-              if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
-              const source = yield* Bom.readFile(afs, filePath)
-              contentOld = source.text
-
-              const ending = detectLineEnding(contentOld)
-              const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
-              const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
-
-              const next = Bom.split(replace(contentOld, old, replacement, params.replaceAll))
-              const desiredBom = source.bom || next.bom
-              contentNew = next.text
-
-              diff = trimDiff(
-                createTwoFilesPatch(
-                  filePath,
-                  filePath,
-                  normalizeLineEndings(contentOld),
-                  normalizeLineEndings(contentNew),
-                ),
-              )
-              yield* ctx.ask({
-                permission: "edit",
-                patterns: [path.relative(instance.worktree, filePath)],
-                always: ["*"],
-                metadata: {
-                  filepath: filePath,
-                  diff,
-                },
-              })
-
-              yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
-              if (yield* format.file(filePath)) {
-                contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
-              }
-              yield* events.publish(FileSystem.Event.Edited, { file: filePath })
-              yield* events.publish(Watcher.Event.Updated, {
-                file: filePath,
-                event: "change",
-              })
-              diff = trimDiff(
-                createTwoFilesPatch(
-                  filePath,
-                  filePath,
-                  normalizeLineEndings(contentOld),
-                  normalizeLineEndings(contentNew),
-                ),
-              )
-            }).pipe(Effect.orDie),
+          const { contentOld, contentNew, diff } = yield* lock(filePath).withPermits(1)(
+            (params.oldString === ""
+              ? createFile(ctx, instance, filePath, params.newString)
+              : editExistingFile(ctx, instance, filePath, params)
+            ).pipe(Effect.orDie),
           )
 
-          let additions = 0
-          let deletions = 0
-          for (const change of diffLines(contentOld, contentNew)) {
-            if (change.added) additions += change.count || 0
-            if (change.removed) deletions += change.count || 0
-          }
+          const { additions, deletions } = countChanges(contentOld, contentNew)
           const filediff: Snapshot.FileDiff = {
             file: filePath,
             patch: diff,
@@ -193,12 +215,7 @@ export const EditTool = Tool.define(
             },
           })
 
-          let output = "Edit applied successfully."
-          yield* lsp.touchFile(filePath, "document")
-          const diagnostics = yield* lsp.diagnostics()
-          const normalizedFilePath = FSUtil.normalizePath(filePath)
-          const block = LSP.Diagnostic.report(filePath, diagnostics[normalizedFilePath] ?? [])
-          if (block) output += `\n\nLSP errors detected in this file, please fix:\n${block}`
+          const { output, diagnostics } = yield* buildOutput(filePath)
 
           return {
             metadata: {
