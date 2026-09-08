@@ -50,6 +50,7 @@ describe("Close issue", () => {
 
     await expect(main()).rejects.toThrow()
   })
+
   test("closes issues older than the cutoff and stops at the first issue newer than the cutoff", async () => {
     const pages = [
       [makeIssue(1, 80), 
@@ -87,6 +88,66 @@ describe("Close issue", () => {
     expect(closed).toEqual([1, 2])
     expect(commented).toEqual([1, 2])
   })
+
+  test("keep stale issues created by the exempt bot", async () => {
+    const pages = [
+      [makeIssue(1, 90, { user: { login: "opencode-agent[bot]" } }), 
+       makeIssue(2, 1)],
+    ]
+    let page = 0
+    const closed: number[] = []
+
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET"
+      if (method === "GET") {
+        const body = pages[page] ?? []
+        page++
+        return new Response(JSON.stringify(body), { status: 200 })
+      }
+      if (method === "PATCH") {
+        const match = String(url).match(/\/issues\/(\d+)$/)
+        if (match) closed.push(Number(match[1]))
+        return new Response("{}", { status: 200 })
+      }
+      return new Response("{}", { status: 201 })
+    }) as typeof fetch
+
+    await main()
+
+    expect(closed).toEqual([])
+  })
+
+  test("Keep stale issue opened by owner ", async () => {
+    const pages = [
+      [makeIssue(1,80),
+       makeIssue(2, 75, { author_association: "OWNER" }), 
+       makeIssue(3, 15)],
+    ]
+    let page = 0
+    const closed: number[] = []
+
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET"
+      if (method === "GET") {
+        const body = pages[page] ?? []
+        page++
+        return new Response(JSON.stringify(body), { status: 200 })
+      }
+      if (method === "PATCH") {
+        const match = String(url).match(/\/issues\/(\d+)$/)
+        if (match) closed.push(Number(match[1]))
+        return new Response("{}", { status: 200 })
+      }
+      return new Response("{}", { status: 201 })
+    }) as typeof fetch
+
+    await main()
+
+    expect(closed).toEqual([1])
+  })
+
+  
+
 
   
 
