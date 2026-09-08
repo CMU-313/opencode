@@ -16,6 +16,14 @@ import { AbsolutePath } from "@opencode-ai/core/schema"
 const DefaultSessionsLimit = 50
 const DefaultSessionHistoryLimit = 50
 
+const mapSessionNotFound = (error: { sessionID: string }) =>
+  Effect.fail(
+    new SessionNotFoundError({
+      sessionID: error.sessionID,
+      message: `Session not found: ${error.sessionID}`,
+    }),
+  )
+
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
@@ -173,14 +181,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.compact",
         Effect.fn(function* (ctx) {
           yield* session.compact({ sessionID: ctx.params.sessionID }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
+            Effect.catchTag("Session.NotFoundError", mapSessionNotFound),
             Effect.catchTag("Session.OperationUnavailableError", (error) =>
               Effect.fail(
                 new ServiceUnavailableError({
@@ -197,14 +198,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.wait",
         Effect.fn(function* (ctx) {
           yield* session.wait(ctx.params.sessionID).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
+            Effect.catchTag("Session.NotFoundError", mapSessionNotFound),
             Effect.catchTag("Session.OperationUnavailableError", (error) =>
               Effect.fail(
                 new ServiceUnavailableError({
