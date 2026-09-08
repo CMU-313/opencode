@@ -46,4 +46,17 @@ describe("util.error", () => {
     expect(data.message).toBe("ResolveMessage: Cannot resolve module")
     expect(String(data.formatted)).toContain("ResolveMessage")
   })
+
+  test("formats serializable objects and primitive values", () => {
+    expect(errorFormat({ code: "E_BAD", retry: false })).toContain('"code": "E_BAD"')
+    expect(errorFormat("plain error")).toBe("plain error")
+    expect(errorFormat(42)).toBe("42")
+  })
+
+  test("handles unserializable object errors", () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+
+    expect(errorFormat(circular)).toBe("Unexpected error (unserializable)")
+  })
 })
