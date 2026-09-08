@@ -29,42 +29,59 @@ function isOpenAiErrorRetryable(e: APICallError) {
 
 // Providers not reliably handled in this function:
 // - z.ai: can accept overflow silently (needs token-count/context-window checks)
+function emptyMessage(e: APICallError) {
+  if (e.message !== "") return undefined
+  if (e.responseBody) return e.responseBody
+  if (e.statusCode) {
+    const err = STATUS_CODES[e.statusCode]
+    if (err) return err
+  }
+  return "Unknown error"
+}
+
+function responseBodyMessage(e: APICallError, msg: string) {
+  if (!e.responseBody || (e.statusCode && msg !== STATUS_CODES[e.statusCode])) return undefined
+
+  try {
+    const body = JSON.parse(e.responseBody)
+    const errMsg = body.message || body.error || body.error?.message
+    if (errMsg && typeof errMsg === "string") {
+      return `${msg}: ${errMsg}`
+    }
+  } catch {}
+
+  return undefined
+}
+
+function gatewayMessage(e: APICallError, msg: string) {
+  if (!/^\s*<!doctype|^\s*<html/i.test(e.responseBody)) return undefined
+
+  if (e.statusCode === 401) {
+    return "Unauthorized: request was blocked by a gateway or proxy. Your authentication token may be missing or expired — try running `opencode auth login <your provider URL>` to re-authenticate."
+  }
+  if (e.statusCode === 403) {
+    return "Forbidden: request was blocked by a gateway or proxy. You may not have permission to access this resource — check your account and provider settings."
+  }
+
+  return msg
+}
+
 function message(providerID: ProviderV2.ID, e: APICallError) {
   return iife(() => {
     const msg = e.message
-    if (msg === "") {
-      if (e.responseBody) return e.responseBody
-      if (e.statusCode) {
-        const err = STATUS_CODES[e.statusCode]
-        if (err) return err
-      }
-      return "Unknown error"
-    }
+
+    const fallback = emptyMessage(e)
+    if (fallback) return fallback
 
     if (!e.responseBody || (e.statusCode && msg !== STATUS_CODES[e.statusCode])) {
       return msg
     }
 
-    try {
-      const body = JSON.parse(e.responseBody)
-      // try to extract common error message fields
-      const errMsg = body.message || body.error || body.error?.message
-      if (errMsg && typeof errMsg === "string") {
-        return `${msg}: ${errMsg}`
-      }
-    } catch {}
+    const bodyMessage = responseBodyMessage(e, msg)
+    if (bodyMessage) return bodyMessage
 
-    // If responseBody is HTML (e.g. from a gateway or proxy error page),
-    // provide a human-readable message instead of dumping raw markup
-    if (/^\s*<!doctype|^\s*<html/i.test(e.responseBody)) {
-      if (e.statusCode === 401) {
-        return "Unauthorized: request was blocked by a gateway or proxy. Your authentication token may be missing or expired — try running `opencode auth login <your provider URL>` to re-authenticate."
-      }
-      if (e.statusCode === 403) {
-        return "Forbidden: request was blocked by a gateway or proxy. You may not have permission to access this resource — check your account and provider settings."
-      }
-      return msg
-    }
+    const htmlMessage = gatewayMessage(e, msg)
+    if (htmlMessage) return htmlMessage
 
     return `${msg}: ${e.responseBody}`
   }).trim()
