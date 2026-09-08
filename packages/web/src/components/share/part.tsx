@@ -12,7 +12,6 @@ import {
   IconCommandLine,
   IconCheckCircle,
   IconChevronDown,
-  IconChevronRight,
   IconDocumentPlus,
   IconPencilSquare,
   IconRectangleStack,
@@ -41,9 +40,17 @@ export interface PartProps {
   last: boolean
 }
 
+export function getCompletedAt(props: Pick<PartProps, "last" | "message">): number | undefined {
+  if (props.last && props.message.role === "assistant" && props.message.time.completed){
+    return props.message.time.completed
+  }
+  return undefined
+}
+
 export function Part(props: PartProps) {
   const [copied, setCopied] = createSignal(false)
   const id = createMemo(() => props.message.id + "-" + props.index)
+  const completedAt = createMemo(() => getCompletedAt(props))
   const messages = useShareMessages()
 
   return (
@@ -139,15 +146,15 @@ export function Part(props: PartProps) {
             <div data-component="assistant-text-markdown">
               <ContentMarkdown expand={props.last} text={props.part.text} />
             </div>
-            {props.last && props.message.role === "assistant" && props.message.time.completed && (
+            {completedAt() !== undefined && (
               <Footer
-                title={DateTime.fromMillis(props.message.time.completed)
-                  .setLocale(normalizeLocale(messages.locale))
-                  .toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS)}
+                  title= {DateTime.fromMillis(completedAt()!)
+                    .setLocale(normalizeLocale(messages.locale))
+                    .toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS)}
               >
-                {DateTime.fromMillis(props.message.time.completed)
-                  .setLocale(normalizeLocale(messages.locale))
-                  .toLocaleString(DateTime.DATETIME_MED)}
+                {DateTime.fromMillis(completedAt()!)
+                    .setLocale(normalizeLocale(messages.locale))
+                    .toLocaleString(DateTime.DATETIME_MED)}
               </Footer>
             )}
           </div>
