@@ -66,30 +66,33 @@ const McpRequest = <F extends Schema.Struct.Fields>(args: Schema.Struct<F>) =>
     }),
   })
 
-export const call = <F extends Schema.Struct.Fields>(
-  http: HttpClient.HttpClient,
-  url: string,
-  tool: string,
-  args: Schema.Struct<F>,
-  value: Schema.Struct.Type<F>,
-  timeout: Duration.Input,
-  headers?: Record<string, string>,
-) =>
+export const call = <F extends Schema.Struct.Fields>(options: {
+  http: HttpClient.HttpClient
+  url: string
+  tool: string
+  args: Schema.Struct<F>
+  value: Schema.Struct.Type<F>
+  timeout: Duration.Input
+  headers?: Record<string, string>
+}) =>
   Effect.gen(function* () {
-    const request = yield* HttpClientRequest.post(url).pipe(
+    const request = yield* HttpClientRequest.post(options.url).pipe(
       HttpClientRequest.accept("application/json, text/event-stream"),
-      HttpClientRequest.setHeaders(headers ?? {}),
-      HttpClientRequest.schemaBodyJson(McpRequest(args))({
+      HttpClientRequest.setHeaders(options.headers ?? {}),
+      HttpClientRequest.schemaBodyJson(McpRequest(options.args))({
         jsonrpc: "2.0" as const,
         id: 1 as const,
         method: "tools/call" as const,
-        params: { name: tool, arguments: value },
+        params: { name: options.tool, arguments: options.value },
       }),
     )
-    const response = yield* HttpClient.filterStatusOk(http)
+    const response = yield* HttpClient.filterStatusOk(options.http)
       .execute(request)
       .pipe(
-        Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.die(new Error(`${tool} request timed out`)) }),
+        Effect.timeoutOrElse({
+          duration: options.timeout,
+          orElse: () => Effect.die(new Error(`${options.tool} request timed out`)),
+        }),
       )
     const body = yield* response.text
     return yield* parseResponse(body)
