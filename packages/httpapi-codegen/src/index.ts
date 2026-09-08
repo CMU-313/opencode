@@ -822,37 +822,56 @@ function assertPortable(schema: Schema.Top, path: string, portable: Map<SchemaAS
   }
   const visitCurrent = (ast: SchemaAST.AST): boolean => {
     if (!annotationsPortable(ast.annotations)) return false
-    if (!checksPortable(ast.checks) || ("encodingChecks" in ast && !checksPortable(ast.encodingChecks))) return false
+    if (!astChecksPortable(ast)) return false
     if (SchemaAST.isDeclaration(ast)) {
       return generationPortable(ast.annotations?.generation) && ast.typeParameters.every(visit)
     }
     if (ast.encoding !== undefined && ast.annotations?.generation === undefined) return false
-    if (SchemaAST.isSuspend(ast)) return visit(ast.thunk())
-    if (SchemaAST.isUnion(ast)) return ast.types.every(visit)
-    if (SchemaAST.isArrays(ast)) {
-      return ast.elements.every(visit) && ast.rest.every(visit)
-    }
-    if (SchemaAST.isObjects(ast)) {
-      return (
-        ast.propertySignatures.every((field) => visit(field.type)) &&
-        ast.indexSignatures.every((index) => visit(index.parameter) && visit(index.type))
-      )
-    }
-    if (SchemaAST.isTemplateLiteral(ast)) return ast.parts.every(visit)
-    return true
+    return portableChildren(ast).every(visit)
   }
   if (taggedError !== undefined && SchemaAST.isDeclaration(schema.ast)) {
-    if (
-      schema.ast.checks !== undefined ||
-      ("encodingChecks" in schema.ast && !checksPortable(schema.ast.encodingChecks)) ||
-      schema.ast.typeParameters.some((ast) => ast.checks !== undefined) ||
-      !schema.ast.typeParameters.every(visit)
-    ) {
+    if (taggedErrorUnportable(schema.ast, visit)) {
       throw new GenerationError({ reason: `Unportable schema: ${path}` })
     }
     return
   }
   if (!visit(schema.ast)) throw new GenerationError({ reason: `Unportable schema: ${path}` })
+}
+
+/** Whether a node's own checks, and its encoding checks when present, are portable. */
+function astChecksPortable(ast: SchemaAST.AST): boolean {
+  if (!checksPortable(ast.checks)) return false
+  if ("encodingChecks" in ast) return checksPortable(ast.encodingChecks)
+  return true
+}
+
+/**
+ * The child nodes a portability check must recurse into for this node kind.
+ * Leaf kinds have none, so `.every()` over the result is vacuously true.
+ */
+function portableChildren(ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> {
+  if (SchemaAST.isSuspend(ast)) return [ast.thunk()]
+  if (SchemaAST.isUnion(ast)) return ast.types
+  if (SchemaAST.isArrays(ast)) return [...ast.elements, ...ast.rest]
+  if (SchemaAST.isObjects(ast)) {
+    return [
+      ...ast.propertySignatures.map((field) => field.type),
+      ...ast.indexSignatures.flatMap((index) => [index.parameter, index.type]),
+    ]
+  }
+  if (SchemaAST.isTemplateLiteral(ast)) return ast.parts
+  return []
+}
+
+/** Tagged error declarations are held to a stricter rule: no checks anywhere. */
+function taggedErrorUnportable(ast: SchemaAST.AST, visit: (ast: SchemaAST.AST) => boolean): boolean {
+  if (!SchemaAST.isDeclaration(ast)) return false
+  return (
+    ast.checks !== undefined ||
+    ("encodingChecks" in ast && !checksPortable(ast.encodingChecks)) ||
+    ast.typeParameters.some((param) => param.checks !== undefined) ||
+    !ast.typeParameters.every(visit)
+  )
 }
 
 function checksPortable(checks: SchemaAST.Checks | undefined): boolean {
