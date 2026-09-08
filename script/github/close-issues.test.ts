@@ -50,7 +50,45 @@ describe("Close issue", () => {
 
     await expect(main()).rejects.toThrow()
   })
+  test("closes issues older than the cutoff and stops at the first issue newer than the cutoff", async () => {
+    const pages = [
+      [makeIssue(1, 80), 
+       makeIssue(2, 66), 
+       makeIssue(3, 40), 
+       makeIssue(4, 10)],
+    ]
+    // stop at issue 3
+    let page = 0
+    const commented: number[] = []
+    const closed: number[] = []
 
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET"
+      if (method === "GET") {
+        const body = pages[page] ?? []
+        page++
+        return new Response(JSON.stringify(body), { status: 200 })
+      }
+      if (method === "POST") {
+        const match = String(url).match(/\/issues\/(\d+)\/comments$/)
+        if (match) commented.push(Number(match[1]))
+        return new Response("{}", { status: 201 })
+      }
+      if (method === "PATCH") {
+        const match = String(url).match(/\/issues\/(\d+)$/)
+        if (match) closed.push(Number(match[1]))
+        return new Response("{}", { status: 200 })
+      }
+      throw new Error(`Unexpected fetch call: ${method} ${url}`)
+    }) as typeof fetch
+
+    await main()
+
+    expect(closed).toEqual([1, 2])
+    expect(commented).toEqual([1, 2])
+  })
+
+  
 
 
 })
