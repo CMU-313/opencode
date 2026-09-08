@@ -146,6 +146,33 @@ describe("Close issue", () => {
     expect(closed).toEqual([1])
   })
 
+  test("Go to next page if issues on current page are all stale ", async () => {
+    const page1 = Array.from({ length: 100 }, (_, k) => makeIssue(k + 1, 80))
+    const page2 = [makeIssue(200, 10)]
+    const pages = [page1, page2]
+    let page = 0
+    const closed: number[] = []
+
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET"
+      if (method === "GET") {
+        const body = pages[page] ?? []
+        page++
+        return new Response(JSON.stringify(body), { status: 200 })
+      }
+      if (method === "PATCH") {
+        const match = String(url).match(/\/issues\/(\d+)$/)
+        if (match) closed.push(Number(match[1]))
+        return new Response("{}", { status: 200 })
+      }
+      return new Response("{}", { status: 201 })
+    }) as typeof fetch
+
+    await main()
+
+    expect(closed.length).toBe(100)
+  })
+
   
 
 
