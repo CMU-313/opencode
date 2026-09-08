@@ -1,0 +1,16 @@
+{
+  "name": "OpenCode Dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
+
+  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bun install",
+
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.bun/bin"
+  }
+}
