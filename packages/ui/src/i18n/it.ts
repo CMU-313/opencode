@@ -1,4 +1,8 @@
-export const dict: Record<string, string> = {
+import { dict as en } from "./en"
+
+type Keys = keyof typeof en
+
+const sessionReview = {
   "ui.sessionReview.title": "Modifiche della sessione",
   "ui.sessionReview.title.git": "Modifiche Git",
   "ui.sessionReview.title.branch": "Modifiche del branch",
@@ -34,7 +38,11 @@ export const dict: Record<string, string> = {
   "ui.sessionReviewV2.empty.changes.description": "Le modifiche al progetto verranno visualizzate qui",
   "ui.sessionReview.openFile": "Apri file",
   "ui.sessionReview.selection.line": "riga {{line}}",
-  "ui.sessionReview.selection.lines": "righe {{start}}-{{end}}",
+  "ui.sessionReview.selection.lines": "righe {{start}}-{{end}}"
+}
+
+export const dict = {
+  ...sessionReview,
   "ui.fileMedia.kind.image": "immagine",
   "ui.fileMedia.kind.audio": "audio",
   "ui.fileMedia.state.removed": "File {{kind}} rimosso.",
@@ -199,4 +207,4 @@ export const dict: Record<string, string> = {
   "ui.question.multiHint": "Seleziona tutte le risposte pertinenti",
   "ui.question.singleHint": "Seleziona una risposta",
   "ui.question.custom.placeholder": "Digita la tua risposta...",
-}
+} satisfies Partial<Record<Keys, string>>
