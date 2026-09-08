@@ -54,6 +54,7 @@ function responseBodyMessage(e: APICallError, msg: string) {
 }
 
 function gatewayMessage(e: APICallError, msg: string) {
+  if (!e.responseBody) return undefined
   if (!/^\s*<!doctype|^\s*<html/i.test(e.responseBody)) return undefined
 
   if (e.statusCode === 401) {
