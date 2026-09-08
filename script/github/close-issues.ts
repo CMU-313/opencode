@@ -63,7 +63,7 @@ async function close(num: number) {
   console.log(`Closed https://github.com/${repo}/issues/${num}`)
 }
 
-async function main() {
+/* async function main() {
   let page = 1
   let closed = 0
 
@@ -111,9 +111,60 @@ async function main() {
   }
 
   console.log(`Closed ${closed} issues total`)
+} 
+*/
+
+async function processStaleIssues(all: Issue[]): Promise<{ closed: number; foundFresh: boolean }> {
+  let closed = 0
+
+  for (const i of all) {
+    const updated = new Date(i.updated_at)
+
+    if (updated >= cutoff) {
+      console.log(`\nFound fresh issue #${i.number}, stopping`)
+      return { closed, foundFresh: true }
+    }
+
+    if (shouldSkip(i)) {
+      console.log(`Skipping stale issue #${i.number}; author ${i.user?.login ?? "unknown"} is exempt`)
+      continue
+    }
+
+    await close(i.number)
+    closed++
+  }
+
+  return { closed, foundFresh: false }
 }
 
-main().catch((err) => {
-  console.error("Error:", err)
-  process.exit(1)
-})
+export async function main() {
+  let page = 1
+  let closed = 0
+
+  while (true) {
+    const res = await fetch(
+      `https://api.github.com/repos/${repo}/issues?state=open&sort=updated&direction=asc&per_page=100&page=${page}`,
+      { headers },
+    )
+    if (!res.ok) throw new Error(res.statusText)
+
+    const all = (await res.json()) as Issue[]
+    if (all.length === 0) break
+    console.log(`Fetched page ${page} ${all.length} issues`)
+
+    const result = await processStaleIssues(all)
+    closed += result.closed
+
+    if (result.foundFresh) break
+    page++
+  }
+
+  console.log(`Closed ${closed} issues total`)
+}
+
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Error:", err)
+    process.exit(1)
+  })
+}
