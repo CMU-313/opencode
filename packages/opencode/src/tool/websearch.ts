@@ -57,43 +57,43 @@ function parallelAuthHeaders() {
   return { ...headers, Authorization: `Bearer ${process.env.PARALLEL_API_KEY}` }
 }
 
-function callProvider(
+export function callProvider(
   http: HttpClient.HttpClient,
   provider: WebSearchProvider,
   params: Schema.Schema.Type<typeof Parameters>,
   ctx: Tool.Context,
 ) {
   if (provider === "parallel") {
-    return McpWebSearch.call(
+    return McpWebSearch.call({
       http,
-      McpWebSearch.PARALLEL_URL,
-      "web_search",
-      McpWebSearch.ParallelSearchArgs,
-      {
+      url: McpWebSearch.PARALLEL_URL,
+      tool: "web_search",
+      args: McpWebSearch.ParallelSearchArgs,
+      value: {
         objective: params.query,
         search_queries: [params.query],
         session_id: ctx.sessionID,
         model_name: webSearchModelName(ctx.extra),
       },
-      "25 seconds",
-      parallelAuthHeaders(),
-    )
+      timeout: "25 seconds",
+      headers: parallelAuthHeaders(),
+    })
   }
 
-  return McpWebSearch.call(
+  return McpWebSearch.call({
     http,
-    McpWebSearch.EXA_URL,
-    "web_search_exa",
-    McpWebSearch.SearchArgs,
-    {
+    url: McpWebSearch.EXA_URL,
+    tool: "web_search_exa",
+    args: McpWebSearch.SearchArgs,
+    value: {
       query: params.query,
       type: params.type || "auto",
       numResults: params.numResults || 8,
       livecrawl: params.livecrawl || "fallback",
       contextMaxCharacters: params.contextMaxCharacters,
     },
-    "25 seconds",
-  )
+    timeout: "25 seconds",
+  })
 }
 
 export const WebSearchTool = Tool.define(
