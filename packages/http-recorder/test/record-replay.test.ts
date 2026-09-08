@@ -207,9 +207,10 @@ describe("http-recorder", () => {
     })
   })
 
-  test("records WebSocket frames in observed client/server order", async () => {
+  test("records WebSocket frames in order with metadata and redaction", async () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "http-recorder-websocket-"))
-    const response = JSON.stringify({ type: "response.completed", token: "server-secret" })
+    const response = JSON.stringify({ type: "response.completed", token: "server-secret", privateValue: "server-value" })
+    const received: Array<string | Uint8Array> = []
     let receive: ((message: string | Uint8Array) => Effect.Effect<unknown, unknown, unknown> | void) | undefined
     const upstream = Socket.make({
       runRaw: (handler, options) =>
@@ -230,29 +231,46 @@ describe("http-recorder", () => {
       Effect.gen(function* () {
         const socket = yield* Socket.Socket
         const write = yield* socket.writer
-        yield* socket.runRaw(() => {}, {
-          onOpen: write(JSON.stringify({ type: "response.create", token: "client-secret" })),
-        })
+        yield* socket.runRaw(
+          (message) => {
+            received.push(message)
+          },
+          {
+            onOpen: write(
+              JSON.stringify({ type: "response.create", token: "client-secret", privateValue: "client-value" }),
+            ),
+          },
+        )
       }).pipe(
         Effect.scoped,
         Effect.provide(
           HttpRecorderInternal.socketLayer(
             "websocket/record",
             { url: "wss://example.test/realtime", headers: { "content-type": "application/json" } },
-            { directory, metadata: { provider: "test" }, mode: "record" },
+            { directory, metadata: { provider: "test" }, redact: { jsonFields: ["privateValue"] }, mode: "record" },
           ).pipe(Layer.provide(Layer.succeed(Socket.Socket, upstream))),
         ),
       ),
     )
 
+    expect(received).toEqual([response])
     expect(JSON.parse(fs.readFileSync(path.join(directory, "websocket/record.json"), "utf8"))).toMatchObject({
+      metadata: { name: "websocket/record", provider: "test" },
       interactions: [
         {
           transport: "websocket",
           open: { url: "wss://example.test/realtime", headers: { "content-type": "application/json" } },
           events: [
-            { direction: "client", kind: "text", body: '{"type":"response.create","token":"[REDACTED]"}' },
-            { direction: "server", kind: "text", body: '{"type":"response.completed","token":"[REDACTED]"}' },
+            {
+              direction: "client",
+              kind: "text",
+              body: '{"type":"response.create","token":"[REDACTED]","privateValue":"[REDACTED]"}',
+            },
+            {
+              direction: "server",
+              kind: "text",
+              body: '{"type":"response.completed","token":"[REDACTED]","privateValue":"[REDACTED]"}',
+            },
           ],
         },
       ],
