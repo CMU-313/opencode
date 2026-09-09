@@ -84,31 +84,43 @@ export namespace Timeline {
     return {
       activeMessageID,
       rows: turns.flatMap((turn, index) =>
-        constructMessageRows(
-          turn.user,
+        constructMessageRows({
+          userMessage: turn.user,
           getMessageParts,
-          turn.assistants,
+          assistantMessages: turn.assistants,
           index,
           showReasoning,
           status,
-          turn.user.id === activeMessageID,
+          isActive: turn.user.id === activeMessageID,
           inlineComments,
-        ),
+        }),
       ),
     }
   }
 
-  export function constructMessageRows(
-    userMessage: UserMessage,
-    getMessageParts: (messageID: string) => Part[],
-    assistantMessages: AssistantMessage[],
-    index: number,
-    showReasoning: boolean,
-    status: SessionStatus["type"],
-    isActive: boolean,
+  export type ConstructMessageRowsParams = {
+    userMessage: UserMessage
+    getMessageParts: (messageID: string) => Part[]
+    assistantMessages: AssistantMessage[]
+    index: number
+    showReasoning: boolean
+    status: SessionStatus["type"]
+    isActive: boolean
     // v2 renders comments inside the user message attachments row instead of a strip row
-    inlineComments: boolean,
-  ) {
+    inlineComments: boolean
+  }
+
+  export function constructMessageRows(params: ConstructMessageRowsParams) {
+    const {
+      userMessage,
+      getMessageParts,
+      assistantMessages,
+      index,
+      showReasoning,
+      status,
+      isActive,
+      inlineComments,
+    } = params
     const rows: TimelineRow.TimelineRow[] = []
 
     const previousUserMessage = index > 0
