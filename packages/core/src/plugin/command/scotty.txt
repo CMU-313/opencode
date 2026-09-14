@@ -1,0 +1,8 @@
+Generate an ASCII art illustration of a Scottish Terrier (Scottie dog) in the terminal.
+
+Rules:
+- Output only the ASCII art itself, no text or commentary before or after.
+- Use a monospaced code block or plain text so the art aligns correctly.
+- The illustration should show a dignified, stylized Scottie in profile or three-quarter view, recognizable by its distinctive silhouette: long head, erect ears, short legs, and a proud stance.
+- Aim for roughly 12–18 lines tall and 40–60 characters wide.
+- Use standard ASCII characters only (no Unicode box drawing).
