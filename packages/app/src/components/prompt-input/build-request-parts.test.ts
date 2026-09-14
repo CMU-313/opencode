@@ -49,6 +49,38 @@ describe("buildRequestParts", () => {
     expect(result.optimisticParts.every((part) => part.sessionID === "ses_1" && part.messageID === "msg_1")).toBe(true)
   })
 
+  test("refreshes source text for file attachments", () => {
+    const result = buildRequestParts({
+      prompt: [
+        {
+          type: "file",
+          path: "src/foo.ts",
+          content: "@src/foo.ts",
+          start: 5,
+          end: 16,
+          source: {
+            type: "file",
+            path: "src/foo.ts",
+            text: { value: "stale", start: 0, end: 5 },
+          },
+        },
+      ],
+      context: [],
+      images: [],
+      text: "@src/foo.ts",
+      messageID: "msg_source",
+      sessionID: "ses_source",
+      sessionDirectory: "/repo",
+    })
+
+    const filePart = result.requestParts.find((part) => part.type === "file")
+    expect(filePart?.source).toEqual({
+      type: "file",
+      path: "src/foo.ts",
+      text: { value: "@src/foo.ts", start: 5, end: 16 },
+    })
+  })
+
   test("keeps multiple uploaded attachments in order", () => {
     const result = buildRequestParts({
       prompt: [{ type: "text", content: "check these", start: 0, end: 11 }],
