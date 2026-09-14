@@ -58,6 +58,7 @@ import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
 import { DialogAlert } from "./ui/dialog-alert"
 import { DialogConfirm } from "./ui/dialog-confirm"
+import { DialogScotty } from "./component/dialog-scotty"
 import { ToastProvider, useToast } from "./ui/toast"
 import { isDefaultTitle } from "./util/session"
 import { KVProvider, useKV } from "./context/kv"
@@ -812,6 +813,15 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         slashName: "help",
         run: () => {
           dialog.replace(() => <DialogHelp />)
+        },
+        category: "System",
+      },
+      {
+        name: "scotty.show",
+        title: "Show Scotty #2",
+        slashName: "scotty",
+        run: () => {
+          dialog.replace(() => <DialogScotty />)
         },
         category: "System",
       },
