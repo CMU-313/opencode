@@ -44,7 +44,7 @@ describe("CommandPlugin.Plugin", () => {
       })
       expect(yield* command.get("scotty")).toMatchObject({
         name: "scotty",
-        description: "generate ASCII art of a terrier in the terminal",
+        description: "print ascii art of a cute scottish terrier",
       })
       expect((yield* command.get("scotty"))?.template).toContain("Scottish Terrier")
     }),
