@@ -807,6 +807,32 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "System",
       },
       {
+        name: "scotty.show",
+        title: "Show Scotty the Scottish Terrier",
+        slashName: "scotty",
+        run: () => {
+          dialog.replace(() => (
+            <DialogAlert
+              title="Scotty the Scottish Terrier"
+              message={String.raw`     /\  /\
+    /  \/  \___
+   |  o        @\
+   |      ______/
+   /     /                 /|
+  /      \________________/ |
+ |                          |
+ |      T A R T A N          |
+  \     PRIDE!      ________/
+   |   |  |   |   |  |   |
+   |___|  |___|   |__|___|
+
+Go Tartans!`}
+            />
+          ))
+        },
+        category: "System",
+      },
+      {
         name: "help.show",
         title: "Help",
         slashName: "help",
