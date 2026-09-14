@@ -18,57 +18,53 @@ export function entryFailed(commit: StreamCommit): boolean {
   return commit.kind === "tool" && (commit.toolState === "error" || commit.part?.state.status === "error")
 }
 
+type EntryLookRule = {
+  matches: (commit: StreamCommit) => boolean
+  result: (theme: RunEntryTheme) => { fg: ColorInput; attrs?: number }
+}
+
+const entryLookRules: EntryLookRule[] = [
+  {
+    matches: (commit) => commit.kind === "user",
+    result: (theme) => ({ fg: theme.user.body }),
+  },
+  {
+    matches: (commit) => entryFailed(commit),
+    result: (theme) => ({ fg: theme.error.body, attrs: TextAttributes.BOLD }),
+  },
+  {
+    matches: (commit) => commit.phase === "final",
+    result: (theme) => ({ fg: theme.system.body, attrs: TextAttributes.DIM }),
+  },
+  {
+    matches: (commit) => commit.kind === "tool" && commit.phase === "start",
+    result: (theme) => ({ fg: theme.tool.start ?? theme.tool.body }),
+  },
+  {
+    matches: (commit) => commit.kind === "assistant",
+    result: (theme) => ({ fg: theme.assistant.body }),
+  },
+  {
+    matches: (commit) => commit.kind === "reasoning",
+    result: (theme) => ({ fg: theme.reasoning.body, attrs: TextAttributes.DIM }),
+  },
+  {
+    matches: (commit) => commit.kind === "error",
+    result: (theme) => ({ fg: theme.error.body, attrs: TextAttributes.BOLD }),
+  },
+  {
+    matches: (commit) => commit.kind === "tool",
+    result: (theme) => ({ fg: theme.tool.body }),
+  },
+  {
+    matches: () => true,
+    result: (theme) => ({ fg: theme.system.body }),
+  }, 
+]
+
 export function entryLook(commit: StreamCommit, theme: RunEntryTheme): { fg: ColorInput; attrs?: number } {
-  if (commit.kind === "user") {
-    return {
-      fg: theme.user.body,
-      //attrs: TextAttributes.BOLD,
-    }
-  }
-
-  if (entryFailed(commit)) {
-    return {
-      fg: theme.error.body,
-      attrs: TextAttributes.BOLD,
-    }
-  }
-
-  if (commit.phase === "final") {
-    return {
-      fg: theme.system.body,
-      attrs: TextAttributes.DIM,
-    }
-  }
-
-  if (commit.kind === "tool" && commit.phase === "start") {
-    return {
-      fg: theme.tool.start ?? theme.tool.body,
-    }
-  }
-
-  if (commit.kind === "assistant") {
-    return { fg: theme.assistant.body }
-  }
-
-  if (commit.kind === "reasoning") {
-    return {
-      fg: theme.reasoning.body,
-      attrs: TextAttributes.DIM,
-    }
-  }
-
-  if (commit.kind === "error") {
-    return {
-      fg: theme.error.body,
-      attrs: TextAttributes.BOLD,
-    }
-  }
-
-  if (commit.kind === "tool") {
-    return { fg: theme.tool.body }
-  }
-
-  return { fg: theme.system.body }
+  const rule = entryLookRules.find((r) => r.matches(commit))!
+  return rule.result(theme)
 }
 
 export function entryColor(commit: StreamCommit, theme: RunTheme): ColorInput {

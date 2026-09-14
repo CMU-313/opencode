@@ -1,0 +1,11 @@
+Output this ASCII art of a dog:
+
+```
+    / \__
+   (    @\___
+   /         O
+  /   (_____/
+ /_____/   U
+```
+
+Just output the ASCII art as shown above, nothing else.

@@ -58,6 +58,7 @@ export const Definitions = {
   help_show: keybind("none", "Open help dialog"),
   docs_open: keybind("none", "Open documentation"),
   diff_open: keybind("none", "Open diff viewer"),
+  scotty: keybind("none", "Open scotty"),
   diff_close: keybind("escape,q", "Close diff viewer"),
   diff_toggle: keybind("enter,space", "Toggle diff viewer item"),
   diff_expand: keybind("right", "Expand diff viewer item"),

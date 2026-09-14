@@ -1,0 +1,11 @@
+{
+  "name": "CMU 313 OpenCode",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y python3 python3-pip build-essential && curl -fsSL https://bun.com/install | bash && curl -sSL https://qlty.sh | bash && cd /workspaces/opencode && bun install",
+
+  "remoteEnv": {
+    "BUN_INSTALL": "/home/vscode/.bun",
+    "PATH": "/home/vscode/.bun/bin:/home/vscode/.qlty/bin:${containerEnv:PATH}"
+  }
+}
