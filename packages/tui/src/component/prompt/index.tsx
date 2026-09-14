@@ -101,6 +101,14 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
+const scottyAsciiArt = `
+  / \\__
+ (    @\\___
+ /         O
+/   (_____/
+/_____/   U
+`
+
 const DRAFT_RETENTION_MIN_CHARS = 20
 
 function randomIndex(count: number) {
@@ -530,6 +538,16 @@ export function Prompt(props: PromptProps) {
               }}
             />
           ))
+        },
+      },
+      {
+        title: "Print ASCII art of a cute Scottish terrier",
+        name: "prompt.scotty",
+        category: "Prompt",
+        slashName: "scotty",
+        run: () => {
+          input.insertText(scottyAsciiArt)
+          dialog.clear()
         },
       },
       {
