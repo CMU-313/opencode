@@ -86,6 +86,7 @@ import * as TuiAudio from "./audio"
 import { win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
 import { cliErrorMessage, errorFormat } from "./util/error"
+import { ScottyLogo } from "./component/scottyascii"
 
 registerOpencodeSpinner()
 
@@ -672,6 +673,14 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         hidden: true,
         run: () => {
           local.model.cycleFavorite(-1)
+        },
+      },
+      {
+        name: "scotty_dog",
+        title: "print ASCII art of a cute Scottish terrier",
+        slashName: "scotty",
+        run: () => {
+          dialog.replace(() => <ScottyLogo />)
         },
       },
       {
