@@ -2,6 +2,7 @@ import { Tooltip as KobalteTooltip } from "@kobalte/core/tooltip"
 import { createEffect, Match, onCleanup, splitProps, Switch, type JSX } from "solid-js"
 import type { ComponentProps } from "solid-js"
 import { createStore } from "solid-js/store"
+import { isFocusInside, openChangePlan, shouldArmFromKey, shouldDropBlock } from "./tooltip-v2-behavior"
 import "./tooltip-v2.css"
 
 export interface TooltipV2Props extends ComponentProps<typeof KobalteTooltip> {
@@ -33,17 +34,12 @@ export function TooltipV2(props: TooltipV2Props) {
 
   const close = () => setState("open", false)
 
-  const inside = () => {
-    const active = document.activeElement
-    if (!ref || !active) return false
-    return ref.contains(active)
-  }
+  const inside = () => isFocusInside(ref, document.activeElement)
 
   const drop = (expand = state.expand) => {
-    if (expand) return
-    if (ref?.matches(":hover")) return
-    if (inside()) return
-    setState("block", false)
+    if (shouldDropBlock(expand, !!ref?.matches(":hover"), inside())) {
+      setState("block", false)
+    }
   }
 
   const sync = () => {
@@ -52,7 +48,6 @@ export function TooltipV2(props: TooltipV2Props) {
     if (expand) {
       setState("block", true)
       close()
-      return
     }
     drop(expand)
   }
@@ -68,16 +63,17 @@ export function TooltipV2(props: TooltipV2Props) {
   }
 
   createEffect(() => {
-    if (!ref) return
-    sync()
-    const obs = new MutationObserver(sync)
-    obs.observe(ref, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      attributeFilter: ["aria-expanded", "data-expanded"],
-    })
-    onCleanup(() => obs.disconnect())
+    if (ref) {
+      sync()
+      const obs = new MutationObserver(sync)
+      obs.observe(ref, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["aria-expanded", "data-expanded"],
+      })
+      onCleanup(() => obs.disconnect())
+    }
   })
 
   let justClickedTrigger = false
@@ -95,13 +91,14 @@ export function TooltipV2(props: TooltipV2Props) {
           ignoreSafeArea={local.ignoreSafeArea ?? true}
           open={local.forceOpen || state.open}
           onOpenChange={(open) => {
-            if (local.forceOpen) return
-            if (state.block && open) return
-            if (justClickedTrigger) {
-              justClickedTrigger = false
-              return
-            }
-            setState("open", open)
+            const plan = openChangePlan({
+              forceOpen: !!local.forceOpen,
+              block: state.block,
+              open,
+              skipClick: justClickedTrigger,
+            })
+            if (plan.resetSkipClick) justClickedTrigger = false
+            if (plan.applyOpen) setState("open", open)
           }}
         >
           <KobalteTooltip.Trigger
@@ -111,8 +108,7 @@ export function TooltipV2(props: TooltipV2Props) {
             class={local.class}
             onPointerDownCapture={arm}
             onKeyDownCapture={(event: KeyboardEvent) => {
-              if (event.key !== "Enter" && event.key !== " ") return
-              arm()
+              if (shouldArmFromKey(event.key)) arm()
             }}
             onPointerLeave={leave}
             onFocusOut={() => requestAnimationFrame(() => drop())}
