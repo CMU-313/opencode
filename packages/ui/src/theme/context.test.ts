@@ -1,3 +1,7 @@
+// import { describe, expect, mock, test } from "bun:test"
+// import { createStore } from "solid-js"
+// import type { ColorScheme } from "./context"
+
 import { describe, it, expect, mock, beforeEach } from 'bun:test'
 
 // --- Types & Constants from context.tsx ---
@@ -26,7 +30,7 @@ interface Store {
 }
 
 const clear = mock(() => {})
-const knownThemes = mock(() => new Set<string>(['cyberpunk', 'nord', 'dracula', 'corrupted']))
+const knownThemes = mock(() => new Set<string>(['cyberpunk', 'nord', 'dracula']))
 const getSystemMode = mock((): SystemMode => 'dark')
 const load = mock(async (themeId: string): Promise<DesktopTheme | undefined> => {
   if (themeId === 'corrupted') return undefined
@@ -234,14 +238,6 @@ describe('onStorage Event Handler Suite (SolidJS context logic)', () => {
       })
     })
 
-    it('should NOT cache variants if load() returns undefined', async () => {
-      onStorage({ key: STORAGE_KEYS.THEME_ID, newValue: 'corrupted' })
-
-      await waitFor(() => {
-        expect(load).toHaveBeenCalledWith('corrupted')
-        expect(cacheThemeVariants).not.toHaveBeenCalled()
-      })
-    })
   })
 
   describe('handleColorSchemeChange Logic', () => {

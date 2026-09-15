@@ -8,8 +8,9 @@
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		"ghcr.io/devcontainers-extra/features/bun:1": {}
+
 	},
-	"postCreateCommand": "bun install"
+	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y lcov && bun install"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
