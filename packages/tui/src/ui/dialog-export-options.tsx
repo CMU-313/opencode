@@ -5,7 +5,7 @@ import { createStore } from "solid-js/store"
 import { onMount, Show } from "solid-js"
 import { useTuiConfig } from "../config"
 import { useBindings } from "../keymap"
-
+//check
 export type DialogExportOptionsProps = {
   defaultFilename: string
   defaultThinking: boolean
