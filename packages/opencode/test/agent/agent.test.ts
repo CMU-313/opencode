@@ -763,6 +763,7 @@ it.instance(
     config: {
       agent: {
         build: { disable: true },
+        learn: { disable: true },
         plan: { disable: true },
       },
     },
