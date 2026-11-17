@@ -61,6 +61,7 @@ export function parse(input: string): Reference | undefined {
   const githubPrefixed = cleaned.match(/^github:([^/\s]+)\/([^/\s]+)$/)
   if (githubPrefixed) return buildRemote({ host: "github.com", segments: [githubPrefixed[1], githubPrefixed[2]] })
 
+  // parse remote schemes
   const remote = parseSchemelessRemote(cleaned)
   if (remote) return remote
 
@@ -200,7 +201,6 @@ function parseSchemelessRemote(rawInput: string) {
     if (direct.length >= 2 && hostLike(direct[0])) return buildRemote({ host: direct[0], segments: direct.slice(1) })
     if (direct.length === 2) return buildRemote({ host: "github.com", segments: direct })
   }
-  
 }
 
 function buildFile(input: { url: URL; remote: string }) {
