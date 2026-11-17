@@ -71,7 +71,7 @@ jobs:
 
   e2e:
     name: e2e (smoke)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
       # Default CI worker count (5) oversubscribes a standard GitHub-hosted
