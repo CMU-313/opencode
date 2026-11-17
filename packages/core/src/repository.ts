@@ -61,14 +61,8 @@ export function parse(input: string): Reference | undefined {
   const githubPrefixed = cleaned.match(/^github:([^/\s]+)\/([^/\s]+)$/)
   if (githubPrefixed) return buildRemote({ host: "github.com", segments: [githubPrefixed[1], githubPrefixed[2]] })
 
-  if (!cleaned.includes("://")) {
-    const scp = cleaned.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/)
-    if (scp) return buildRemote({ host: scp[1], segments: parts(scp[2]), remote: cleaned })
-
-    const direct = parts(cleaned)
-    if (direct.length >= 2 && hostLike(direct[0])) return buildRemote({ host: direct[0], segments: direct.slice(1) })
-    if (direct.length === 2) return buildRemote({ host: "github.com", segments: direct })
-  }
+  const remote = parseSchemelessRemote(cleaned)
+  if (remote) return remote
 
   try {
     const url = new URL(cleaned)
@@ -193,6 +187,20 @@ function buildRemote(input: { host: string; segments: string[]; remote?: string;
     label: host === "github.com" && segments.length === 2 ? repositoryPath : `${host}/${repositoryPath}`,
     protocol: input.protocol,
   } satisfies RemoteReference
+}
+
+function parseSchemelessRemote(rawInput: string) {
+  const cleaned = rawInput
+
+  if (!cleaned.includes("://")) {
+    const scp = cleaned.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/)
+    if (scp) return buildRemote({ host: scp[1], segments: parts(scp[2]), remote: cleaned })
+
+    const direct = parts(cleaned)
+    if (direct.length >= 2 && hostLike(direct[0])) return buildRemote({ host: direct[0], segments: direct.slice(1) })
+    if (direct.length === 2) return buildRemote({ host: "github.com", segments: direct })
+  }
+  
 }
 
 function buildFile(input: { url: URL; remote: string }) {
