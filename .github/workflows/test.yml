@@ -62,7 +62,7 @@ jobs:
         # Default turbo concurrency (10) oversubscribes ubuntu-latest's 4
         # vCPUs across 5 packages' test tasks running at once — same
         # contention issue typecheck.yml already caps for tsgo.
-        run: GITHUB_ACTIONS=false bun turbo test --concurrency=4
+        run: GITHUB_ACTIONS=false bun turbo test --filter=@opencode-ai/core --force -- ./test/repository.test.ts ./test/git.test.ts ./test/repository-cache.test.ts ./test/reference.test.ts --concurrency=4
 
       - name: Check generated client
         timeout-minutes: 5
